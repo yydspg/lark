@@ -1,3 +1,6 @@
+// Copyright (c) 2024 LARK Contributors
+// SPDX-License-Identifier: MIT
+
 #pragma once
 
 #include <atomic>

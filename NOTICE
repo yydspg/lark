@@ -1,0 +1,17 @@
+LARK - C++20 DAG Framework
+Copyright (c) 2024 LARK Contributors
+
+This project is licensed under the MIT License. See LICENSE file for details.
+
+---
+
+## Applying the MIT License to Your Files
+
+To add the MIT license header to your source files, use:
+
+```cpp
+// Copyright (c) 2024 LARK Contributors
+// SPDX-License-Identifier: MIT
+```
+
+For more information about SPDX identifiers, see: https://spdx.org/licenses/
