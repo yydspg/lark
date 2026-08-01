@@ -142,6 +142,36 @@ for (const auto& type : types) {
 }
 ```
 
+### 5. Duplicate Name Detection
+
+The framework **automatically checks for duplicate node names** at registration time. If you try to register two different node classes with the same name, the program will throw a `std::invalid_argument` exception at startup:
+
+```cpp
+// file1.cpp
+LARK_NODE("fetch_user", FetchUserNode);  // ✓ OK
+
+// file2.cpp
+LARK_NODE("fetch_user", AnotherFetchUserNode);  // ✗ Throws at startup!
+// Error: NodeRegistry: duplicate node type 'fetch_user'
+```
+
+**Why this matters:**
+- Catches naming conflicts early (at program startup, not at runtime)
+- Prevents accidental node overwrites
+- Makes debugging easier with clear error messages
+
+**How to fix:**
+- Use unique, descriptive names for each node type
+- Follow naming conventions: `fetch_user`, `fetch_orders`, `rank_user`, etc.
+- If you need multiple instances, use node IDs (not type names):
+  ```cpp
+  // Same type, different instances
+  builder.Build({
+      {"fetch_user", {}, "user_v1"},
+      {"fetch_user", {}, "user_v2"},  // Same type, different ID
+  });
+  ```
+
 ## Advanced: Custom Registry
 
 For testing or multi-tenant scenarios, you can create isolated registries:
@@ -221,14 +251,35 @@ int main() {
 
 ### Duplicate Registration Error?
 
-You're registering the same name twice:
+The framework **automatically detects duplicate node names** at registration time and throws an exception:
 
 ```cpp
 LARK_NODE("fetch_user", FetchUserNode);
 LARK_NODE("fetch_user", AnotherNode);  // ✗ Error: duplicate name!
 ```
 
-Use unique names for each node type.
+**Error message:**
+```
+terminate called after throwing an instance of 'std::invalid_argument'
+  what():  NodeRegistry: duplicate node type 'fetch_user'
+```
+
+**Common causes:**
+1. Copy-pasting a node file and forgetting to change the name
+2. Two developers accidentally using the same name
+3. Accidentally using the macro twice on the same class
+
+**Solution:**
+- Each node type must have a **unique name**
+- Use descriptive, specific names: `"fetch_user_profile"`, `"fetch_user_orders"`, etc.
+- If you need multiple instances of the same node type, use **node IDs** instead:
+  ```cpp
+  // Same node type, different instances
+  builder.Build({
+      {"fetch_user", {}, "user_node_1"},
+      {"fetch_user", {}, "user_node_2"},
+  });
+  ```
 
 ## Performance
 

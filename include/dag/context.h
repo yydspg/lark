@@ -23,10 +23,13 @@ void Set(IContext& ctx, const string& key, T value) {
 }
 
 template <typename T>
-shared_ptr<T> Get(const IContext& ctx, const string& key) {
-  return std::const_pointer_cast<T>(
-      std::static_pointer_cast<const T>(
-          ctx.GetVoid(key, std::type_index(typeid(T)))));
+T& Get(const IContext& ctx, const string& key) {
+  if (auto ptr = std::const_pointer_cast<T>(
+          std::static_pointer_cast<const T>(
+              ctx.GetVoid(key, std::type_index(typeid(T)))))) {
+    return *ptr;
+  }
+  throw std::out_of_range("IContext::Get: missing key '" + key + "'");
 }
 
 template <typename T>
@@ -36,10 +39,7 @@ bool Has(const IContext& ctx, const string& key) {
 
 template <typename T>
 T& Require(const IContext& ctx, const string& key) {
-  if (auto ptr = Get<T>(ctx, key)) {
-    return *ptr;
-  }
-  throw std::out_of_range("IContext::Require: missing key '" + key + "'");
+  return Get<T>(ctx, key);
 }
 
 template <typename T, typename... Args>
@@ -50,19 +50,19 @@ shared_ptr<T> ProvideDomain(IContext& ctx, Args&&... args) {
 }
 
 template <typename T>
-shared_ptr<T> Domain(const IContext& ctx) {
-  return std::const_pointer_cast<T>(
-      std::static_pointer_cast<const T>(
-          ctx.GetDomainVoid(std::type_index(typeid(T)))));
+T& Domain(const IContext& ctx) {
+  if (auto ptr = std::const_pointer_cast<T>(
+          std::static_pointer_cast<const T>(
+              ctx.GetDomainVoid(std::type_index(typeid(T)))))) {
+    return *ptr;
+  }
+  throw std::out_of_range(std::string("IContext::Domain: missing '") +
+                          typeid(T).name() + "'");
 }
 
 template <typename T>
 T& RequireDomain(const IContext& ctx) {
-  if (auto ptr = Domain<T>(ctx)) {
-    return *ptr;
-  }
-  throw std::out_of_range(std::string("IContext::RequireDomain: missing '") +
-                          typeid(T).name() + "'");
+  return Domain<T>(ctx);
 }
 
 // Convenience alias: the default concrete context shipped with the framework.

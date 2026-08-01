@@ -43,6 +43,7 @@ void ExpectThrow(Fn&& fn, const char* what, const char* file, int line) {
 
 #define CHECK(cond) Check((cond), #cond, __FILE__, __LINE__)
 #define CHECK_THROWS(fn) ExpectThrow((fn), #fn, __FILE__, __LINE__)
+#define CHECK_NOTHROW(fn) Check((fn, true), #fn, __FILE__, __LINE__)
 
 using namespace std::chrono_literals;
 
@@ -67,9 +68,11 @@ class SourceNode : public lark::Node {
 
 class SinkNode : public lark::Node {
   void Compute(lark::IContext& ctx) override {
-    auto x = lark::Get<int>(ctx, "x");
-    if (x && *x == 7) {
-      lark::Set(ctx, "y", 2 * *x);  // proves this ran after SourceNode
+    if (lark::Has<int>(ctx, "x")) {
+      const auto& x = lark::Get<int>(ctx, "x");
+      if (x == 7) {
+        lark::Set(ctx, "y", 2 * x);  // proves this ran after SourceNode
+      }
     }
   }
 };
@@ -128,14 +131,14 @@ void TestContext() {
   lark::Set(ctx, "n", 42);
   CHECK(lark::Has<int>(ctx, "n"));
   CHECK(!lark::Has<std::string>(ctx, "n"));       // type mismatch
-  CHECK(lark::Get<int>(ctx, "n") != nullptr && *lark::Get<int>(ctx, "n") == 42);
-  CHECK(lark::Get<double>(ctx, "n") == nullptr);  // wrong type -> nullptr
-  CHECK(lark::Get<int>(ctx, "missing") == nullptr);
+  CHECK(lark::Get<int>(ctx, "n") == 42);
+  CHECK_THROWS([&] { lark::Get<double>(ctx, "n"); });      // wrong type -> throws
+  CHECK_THROWS([&] { lark::Get<int>(ctx, "missing"); });   // missing key -> throws
 
   lark::ProvideDomain<Bag>(ctx);
-  CHECK(lark::Domain<Bag>(ctx) != nullptr);
+  CHECK_NOTHROW(lark::Domain<Bag>(ctx));
   lark::RequireDomain<Bag>(ctx).counter = 5;
-  CHECK(lark::Domain<Bag>(ctx)->counter.load() == 5);
+  CHECK(lark::Domain<Bag>(ctx).counter.load() == 5);
 
   ctx.Erase("n");
   CHECK(!lark::Has<int>(ctx, "n"));
@@ -177,7 +180,7 @@ void TestDiamondExecution() {
   lark::Executor executor(4, 4);
   executor.Execute(*graph, ctx);
 
-  CHECK(lark::Domain<Bag>(ctx)->counter.load() == 4);
+  CHECK(lark::Domain<Bag>(ctx).counter.load() == 4);
   for (const auto& node : graph->nodes()) {
     CHECK(node->status() == lark::NodeStatus::kSuccess);
   }
@@ -194,8 +197,8 @@ void TestOrderingAndDataFlow() {
   executor.Execute(*graph, ctx);
 
   // sink only sets y when it observed source's x -> proves ordering.
-  auto y = lark::Get<int>(ctx, "y");
-  CHECK(y != nullptr && *y == 14);
+  CHECK(lark::Has<int>(ctx, "y"));
+  CHECK(lark::Get<int>(ctx, "y") == 14);
 }
 
 void TestParallelInputs() {
@@ -235,7 +238,7 @@ void TestFallback() {
   CHECK(graph->Find("boom")->status() == lark::NodeStatus::kFallback);
   CHECK(graph->Find("boom_nf")->status() == lark::NodeStatus::kFailed);
   CHECK(graph->Find("boom_nf")->error() != nullptr);
-  CHECK(lark::Get<int>(ctx, "recovered") != nullptr);
+  CHECK(lark::Has<int>(ctx, "recovered"));
   // Downstream still runs after a failed dependency (graph completes).
   CHECK(graph->Find("sink")->status() == lark::NodeStatus::kSuccess);
 }
@@ -251,13 +254,13 @@ void TestGraphReuse() {
   lark::DefaultContext ctx1;
   lark::ProvideDomain<Bag>(ctx1);
   executor.Execute(*graph, ctx1);
-  CHECK(lark::Domain<Bag>(ctx1)->counter.load() == 2);
+  CHECK(lark::Domain<Bag>(ctx1).counter.load() == 2);
 
   // Re-run the same graph with a fresh context; run state is reset internally.
   lark::DefaultContext ctx2;
   lark::ProvideDomain<Bag>(ctx2);
   executor.Execute(*graph, ctx2);
-  CHECK(lark::Domain<Bag>(ctx2)->counter.load() == 2);
+  CHECK(lark::Domain<Bag>(ctx2).counter.load() == 2);
 }
 
 void TestWideGraphStress() {
@@ -277,7 +280,7 @@ void TestWideGraphStress() {
   lark::ProvideDomain<Bag>(ctx);
   lark::Executor executor(2, 2);
   executor.Execute(*graph, ctx);
-  CHECK(lark::Domain<Bag>(ctx)->counter.load() == 500);
+  CHECK(lark::Domain<Bag>(ctx).counter.load() == 500);
 }
 
 // ---- Custom IContext implementation --------------------------------------
@@ -353,8 +356,8 @@ void TestCustomContext() {
   // source writes x; sink reads x, writes y.
   CHECK(ctx.writes() >= 2);
   CHECK(ctx.reads() >= 1);
-  auto y = lark::Get<int>(ctx, "y");
-  CHECK(y != nullptr && *y == 14);
+  CHECK(lark::Has<int>(ctx, "y"));
+  CHECK(lark::Get<int>(ctx, "y") == 14);
 }
 
 // Verifies that:
@@ -375,15 +378,14 @@ void TestPoolSelectionAndSchedule() {
 
   executor.Execute(*graph, ctx);
 
-  auto io_tid = lark::Get<std::thread::id>(ctx, "io_tid");
-  auto compute_tid = lark::Get<std::thread::id>(ctx, "compute_tid");
-  auto io2_tid = lark::Get<std::thread::id>(ctx, "io2_tid");
-  CHECK(io_tid != nullptr);
-  CHECK(compute_tid != nullptr);
-  CHECK(io2_tid != nullptr);
+  CHECK(lark::Has<std::thread::id>(ctx, "io_tid"));
+  CHECK(lark::Has<std::thread::id>(ctx, "compute_tid"));
+  CHECK(lark::Has<std::thread::id>(ctx, "io2_tid"));
+  const auto& io_tid = lark::Get<std::thread::id>(ctx, "io_tid");
+  const auto& compute_tid = lark::Get<std::thread::id>(ctx, "compute_tid");
   // The compute step must have run on a different thread than the IO step
   // (the pools are disjoint: 3 compute workers, 5 IO workers).
-  CHECK(*compute_tid != *io_tid);
+  CHECK(compute_tid != io_tid);
   // After hopping back to the IO pool, we're on some IO worker (not
   // necessarily the same one we started on, but always an IO worker).
 }

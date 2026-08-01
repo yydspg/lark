@@ -81,11 +81,15 @@ LARK_NODE("risk_signal", RiskSignalNode);  // Auto-registered!
 
 class BuildFeaturesNode : public lark::Node {
   void Compute(lark::IContext& ctx) override {
-    auto user = lark::Get<UserProfile>(ctx, "user");
-    auto orders = lark::Get<Orders>(ctx, "orders");
     Features f;
-    f.score = (user ? user->level : 0) * 10.0 +
-              (orders ? static_cast<double>(orders->ids.size()) : 0.0);
+    if (lark::Has<UserProfile>(ctx, "user")) {
+      const auto& user = lark::Get<UserProfile>(ctx, "user");
+      f.score += user.level * 10.0;
+    }
+    if (lark::Has<Orders>(ctx, "orders")) {
+      const auto& orders = lark::Get<Orders>(ctx, "orders");
+      f.score += static_cast<double>(orders.ids.size());
+    }
     lark::Set(ctx, "features", f);
   }
 };
@@ -93,10 +97,14 @@ LARK_NODE("build_features", BuildFeaturesNode);  // Auto-registered!
 
 class RankNode : public lark::Node {
   void Compute(lark::IContext& ctx) override {
-    auto features = lark::Get<Features>(ctx, "features");
-    auto risk = lark::Get<double>(ctx, "risk");
-    const double final_score =
-        (features ? features->score : 0.0) * (risk ? *risk : 1.0);
+    double final_score = 0.0;
+    if (lark::Has<Features>(ctx, "features")) {
+      const auto& features = lark::Get<Features>(ctx, "features");
+      final_score = features.score;
+    }
+    if (lark::Has<double>(ctx, "risk")) {
+      final_score *= lark::Get<double>(ctx, "risk");
+    }
     lark::Set(ctx, "final_score", final_score);
   }
 };
@@ -167,8 +175,9 @@ int main() {
   const auto elapsed = std::chrono::steady_clock::now() - start;
 
   // Read the final result.
-  if (auto score = lark::Get<double>(ctx, "final_score")) {
-    std::cout << "\nfinal_score = " << *score << "  (wall time "
+  if (lark::Has<double>(ctx, "final_score")) {
+    const auto& score = lark::Get<double>(ctx, "final_score");
+    std::cout << "\nfinal_score = " << score << "  (wall time "
               << std::chrono::duration_cast<std::chrono::milliseconds>(elapsed)
                      .count()
               << " ms)\n";
