@@ -16,17 +16,17 @@
 
 | Language | README | Usage Guide |
 |----------|--------|-------------|
-| 🇬🇧 **English** | [README_EN.md](README_EN.md) | [USAGE_EN.md](USAGE_EN.md) |
-| 🇨🇳 **中文** | [README_ZH.md](README_ZH.md) | [USAGE_ZH.md](USAGE_ZH.md) |
+| 🇬🇧 **English** | [README_EN.md](docs/README_EN.md) | [USAGE_EN.md](docs/USAGE_EN.md) |
+| 🇨🇳 **中文** | [README_ZH.md](docs/README_ZH.md) | [USAGE_ZH.md](docs/USAGE_ZH.md) |
 
 ---
 
 ### Quick Links / 快速链接
 
-- 📚 **[English README](README_EN.md)** - Full project documentation in English
-- 📚 **[中文 README](README_ZH.md)** - 完整中文项目文档
-- 📘 **[English Usage Guide](USAGE_EN.md)** - Detailed usage examples and best practices
-- 📘 **[中文使用指南](USAGE_ZH.md)** - 详细使用示例和最佳实践
+- 📚 **[English README](docs/README_EN.md)** - Full project documentation in English
+- 📚 **[中文 README](docs/README_ZH.md)** - 完整中文项目文档
+- 📘 **[English Usage Guide](docs/USAGE_EN.md)** - Detailed usage examples and best practices
+- 📘 **[中文使用指南](docs/USAGE_ZH.md)** - 详细使用示例和最佳实践
 
 ### Other Documentation / 其他文档
 

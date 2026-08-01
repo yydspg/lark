@@ -8,7 +8,7 @@
   - Quick navigation table
 
 ### README Files (Project Documentation)
-- **README_EN.md** - Complete English documentation
+- **docs/README_EN.md** - Complete English documentation
   - Overview & Features
   - Architecture diagrams
   - Core components
@@ -16,7 +16,7 @@
   - Build instructions
   - License information
 
-- **README_ZH.md** - Complete Chinese documentation (中文)
+- **docs/README_ZH.md** - Complete Chinese documentation (中文)
   - 概述与特性
   - 架构设计图
   - 核心组件
@@ -25,7 +25,7 @@
   - 许可证信息
 
 ### Usage Guides (Detailed Usage)
-- **USAGE_EN.md** - English usage guide
+- **docs/USAGE_EN.md** - English usage guide
   - Installation
   - Basic concepts
   - Creating nodes
@@ -35,7 +35,7 @@
   - Best practices
   - Common patterns
 
-- **USAGE_ZH.md** - Chinese usage guide (中文使用指南)
+- **docs/USAGE_ZH.md** - Chinese usage guide (中文使用指南)
   - 安装
   - 基本概念
   - 创建节点
@@ -66,21 +66,21 @@
 
 ```
 README.md (Main Hub)
-    ├─→ README_EN.md (English Project Docs)
-    │   └─→ USAGE_EN.md (English Usage Guide)
+    ├─→ docs/README_EN.md (English Project Docs)
+    │   └─→ docs/USAGE_EN.md (English Usage Guide)
     │
-    └─→ README_ZH.md (中文项目文档)
-        └─→ USAGE_ZH.md (中文使用指南)
+    └─→ docs/README_ZH.md (中文项目文档)
+        └─→ docs/USAGE_ZH.md (中文使用指南)
 ```
 
 ## 📊 File Sizes
 
 ```
 README.md        1.5K  (Language selector)
-README_EN.md    10K    (English project docs)
-README_ZH.md    9.8K   (Chinese project docs)
-USAGE_EN.md     8.2K   (English usage guide)
-USAGE_ZH.md     8.0K   (Chinese usage guide)
+docs/README_EN.md    10K    (English project docs)
+docs/README_ZH.md    9.8K   (Chinese project docs)
+docs/USAGE_EN.md     8.2K   (English usage guide)
+docs/USAGE_ZH.md     8.0K   (Chinese usage guide)
 CONTRIBUTING.md 9.0K   (Bilingual contribution guide)
 ```
 
@@ -89,12 +89,12 @@ CONTRIBUTING.md 9.0K   (Bilingual contribution guide)
 | Document | English | Chinese | Notes |
 |----------|---------|---------|-------|
 | README.md | ✓ | ✓ | Main entry point |
-| README_EN.md | ✓ | - | English only |
-| README_ZH.md | - | ✓ | Chinese only |
-| USAGE_EN.md | ✓ | - | English only |
-| USAGE_ZH.md | - | ✓ | Chinese only |
+| docs/README_EN.md | ✓ | - | English only |
+| docs/README_ZH.md | - | ✓ | Chinese only |
+| docs/USAGE_EN.md | ✓ | - | English only |
+| docs/USAGE_ZH.md | - | ✓ | Chinese only |
 | CONTRIBUTING.md | ✓ | ✓ | Bilingual in one file |
-| AUTO_REGISTRATION.md | ✓ | ✓ | Bilingual in one file |
+| docs/AUTO_REGISTRATION.md | ✓ | ✓ | Bilingual in one file |
 
 ## �� Naming Convention
 

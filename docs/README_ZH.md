@@ -8,7 +8,7 @@
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](https://isocpp.org/)
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)]()
 
-[返回主页](README.md) | [English Version](README_EN.md)
+[返回主页](../README.md) | [English Version](README_EN.md)
 
 **[使用指南](USAGE_ZH.md)** | **[Usage Guide](USAGE_EN.md)**
 
