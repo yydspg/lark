@@ -32,6 +32,7 @@
 
 - 📄 [Contributing Guide / 贡献指南](CONTRIBUTING.md) (Bilingual / 双语)
 - 📄 [Auto-Registration Guide / 自动注册指南](docs/AUTO_REGISTRATION.md) (Bilingual / 双语)
+- 📄 [Column Engine v4 / 列示计算引擎](docs/COLUMN_ENGINE_V4.md) (Bilingual / 双语)
 - 📄 [License / 许可证](LICENSE) (MIT)
 
 </div>

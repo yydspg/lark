@@ -50,6 +50,19 @@ add_library(lark
   src/column/node/aggregate_node.cpp
   # Column engine — Graph pipeline
   src/column/graph.cpp
+  # Column engine v4 — feed/compute/fetch engine
+  src/column/tensor_store.cpp
+  src/column/monitor.cpp
+  src/column/feed_fetch.cpp
+  src/column/context/execution_context.cpp
+  src/column/exec/tensor_op.cpp
+  src/column/exec/ops.cpp
+  src/column/exec/exec_node.cpp
+  src/column/exec/compute_graph.cpp
+  src/column/backend/backend.cpp
+  src/column/biz/module.cpp
+  src/column/biz/dsl.cpp
+  src/column/biz/pipeline.cpp
 )
 target_include_directories(lark PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 

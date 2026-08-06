@@ -3,19 +3,36 @@
 
 #pragma once
 
-// Column Engine v3: Two-layer architecture
+// Column Engine v4: feed → compute → fetch, with business/execution layers.
 //
-// Layer 1 (node/)  — Business nodes: define WHAT to compute
-// Layer 2 (compute/) — Compute kernels: HOW to compute (SIMD-optimized)
+//   feed    (feed_fetch.h)     行转列 — row-oriented business records become
+//                               columnar tensors in the execution store.
+//   compute (pipeline.h)       图节点编排计算 — modules declare sub-graphs; the
+//                               framework wires them into a global ComputeGraph
+//                               (with anonymous/temp nodes) and runs it on the
+//                               coroutine compute pool.
+//   fetch   (feed_fetch.h)     列转行 — result columns are materialized back to
+//                               business rows.
 //
-// Data flows as TensorTable between nodes.
-// Operator overloads are provided for ergonomic tensor expressions.
+// Layers:
+//   Business (biz/)   — Module / SubGraph / DSL / Pipeline: WHAT to compute,
+//                       ergonomic, framework handles wiring & readiness.
+//   Execution (exec/) — TensorOp / ComputeNode / ComputeGraph: HOW to compute,
+//                       performance-focused kernels, bind tensor ops to nodes.
+//   Backend (backend/) — factory for compute backends (CPU implemented).
+//   Context (context/) — per-run ExecutionContext with feed/compute/fetch phases.
+//   Monitoring (monitor.h) — generic ExecutionMonitor + StatsCollector.
 
-// Data container
+// Data containers
 #include "column/tensor.h"
 #include "column/tensor_table.h"
+#include "column/tensor_store.h"
+#include "column/types.h"
 
-// Compute kernels
+// Row <-> column conversion (feed / fetch)
+#include "column/feed_fetch.h"
+
+// Compute kernels (Layer 2)
 #include "column/compute/simd.h"
 #include "column/compute/add_tensor.h"
 #include "column/compute/sub_tensor.h"
@@ -26,14 +43,32 @@
 #include "column/compute/compare_tensor.h"
 #include "column/compute/unary_tensor.h"
 
-// Business nodes
+// Legacy business nodes (Layer 1, sequential pipeline)
 #include "column/node/node.h"
 #include "column/node/transform_node.h"
 #include "column/node/filter_node.h"
 #include "column/node/aggregate_node.h"
-
-// Graph (pipeline of nodes)
 #include "column/graph.h"
+
+// Monitoring
+#include "column/monitor.h"
+
+// Execution layer
+#include "column/exec/tensor_op.h"
+#include "column/exec/exec_node.h"
+#include "column/exec/compute_graph.h"
+
+// Backend factory
+#include "column/backend/backend.h"
+
+// Execution context (feed / compute / fetch phases)
+#include "column/context/execution_context.h"
+
+// Business layer
+#include "column/biz/sub_graph.h"
+#include "column/biz/dsl.h"
+#include "column/biz/module.h"
+#include "column/biz/pipeline.h"
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Convenience operator overloads
@@ -55,7 +90,7 @@ inline Tensor operator*(double v, const Tensor& a) { return compute::mul_scalar(
 inline Tensor operator-(const Tensor& a) { return compute::neg(a); }
 
 // Version info
-constexpr int kVersionMajor = 3;
+constexpr int kVersionMajor = 4;
 constexpr int kVersionMinor = 0;
 constexpr int kVersionPatch = 0;
 
