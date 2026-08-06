@@ -32,3 +32,13 @@ add_executable(test_metric test_metric.cpp)
 target_link_libraries(test_metric PRIVATE lark)
 
 add_test(NAME test_metric COMMAND test_metric)
+
+add_executable(test_future test_future.cpp)
+target_link_libraries(test_future PRIVATE lark)
+
+add_test(NAME test_future COMMAND test_future)
+
+add_executable(test_pools test_pools.cpp)
+target_link_libraries(test_pools PRIVATE lark)
+
+add_test(NAME test_pools COMMAND test_pools)
