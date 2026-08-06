@@ -1,6 +1,5 @@
-# RPC Framework & DAG Upgrades (RPC 框架与 DAG 升级)
+# RPC Framework & DAG Upgrades
 
-> Bilingual / 双语: [English](#english) · [中文](#中文)
 
 ## English
 
@@ -54,40 +53,3 @@ See `examples/rpc_example.cpp` and `tests/test_rpc.cpp`.
   skips the listed nodes for that run: each gets `NodeStatus::kSkipped`, its
   completion event fires immediately, and downstream nodes proceed. The graph
   always drains (never blocks), and `Monitor::OnNodeSkipped` is invoked.
-
-## 中文
-
-### 1. 通用 RPC 框架（`rpc/`）
-
-基于 OOP 思想的传输无关 RPC 抽象：业务面向接口编程，具体框架通过工厂接入。
-
-**接口（OOP）：**
-
-| 接口 | 职责 |
-|------|------|
-| `RpcService` | 可被远程调用的服务（`Dispatch`）；`RpcServiceImpl` 按方法名注册 handler |
-| `RpcChannel` | 客户端传输抽象（`Call(service, method, req, res, options)`） |
-| `RpcServer` | 服务端传输抽象（`RegisterService` / `Start` / `Stop`） |
-| `RpcBackend` | 为某种线上格式创建 channel / server |
-| `RpcFactory` | 按名注册后端的工厂（策略模式） |
-
-**后端：**
-
-- `inproc` — 内置，进程内直连（无 socket、无序列化依赖），用于测试/本地开发。
-- `grpc` / `brpc` — 适配层；仅在 `LARK_WITH_GRPC=ON` / `LARK_WITH_BRPC=ON` 时可用，
-  否则优雅失败，调用方代码无需改动。
-
-### 2. DAG 业务执行框架升级（`dag/`）
-
-- **每个 DagNode 提供执行监控耗时能力** — `Node` 记录 `elapsed()` 与 `started_at()`
-  （相对运行起点的偏移），便于做瀑布图；内置 `dag::StatsCollector : Monitor`
-  开箱即用地聚合：`std::cout << stats.stats().summary();`
-- **执行 dag 图时批量关闭节点** — `Executor::Execute(graph, ctx, {"nodeA", "nodeB"})`
-  对本次运行跳过指定节点：被跳过的节点状态为 `NodeStatus::kSkipped`，其完成事件
-  立即触发，下游照常执行，图必然收敛（不会阻塞），并回调 `Monitor::OnNodeSkipped`。
-
-### Column engine (v4)
-
-See `docs/COLUMN_ENGINE_V4.md` for the feed / compute / fetch engine, including
-the refactor that splits the execution-layer ops and the Pipeline compiler into
-small focused classes.

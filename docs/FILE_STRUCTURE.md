@@ -3,8 +3,8 @@
 ## 📁 Documentation Files
 
 ### Main Entry Point
-- **README.md** - Language selection hub (Bilingual)
-  - Links to English and Chinese versions
+- **README.md** - Project hub
+  - Links to the English README and Usage Guide
   - Quick navigation table
 
 ### README Files (Project Documentation)
@@ -16,15 +16,7 @@
   - Build instructions
   - License information
 
-- **docs/README_ZH.md** - Complete Chinese documentation (中文)
-  - 概述与特性
-  - 架构设计图
-  - 核心组件
-  - 快速开始
-  - 构建说明
-  - 许可证信息
-
-### Usage Guides (Detailed Usage)
+### Usage Guide (Detailed Usage)
 - **docs/USAGE_EN.md** - English usage guide
   - Installation
   - Basic concepts
@@ -35,18 +27,8 @@
   - Best practices
   - Common patterns
 
-- **docs/USAGE_ZH.md** - Chinese usage guide (中文使用指南)
-  - 安装
-  - 基本概念
-  - 创建节点
-  - 构建图
-  - 执行图
-  - 高级特性
-  - 最佳实践
-  - 常见模式
-
 ### Contributing & License
-- **CONTRIBUTING.md** - Contribution guidelines (Bilingual)
+- **CONTRIBUTING.md** - Contribution guidelines
   - How to report bugs
   - How to submit PRs
   - Code style guide
@@ -55,62 +37,49 @@
 - **LICENSE** - MIT License
 - **NOTICE** - License notice and guidelines
 
-### Specialized Guides
-- **docs/AUTO_REGISTRATION.md** - Node auto-registration guide (Bilingual)
-  - LARK_NODE macro usage
-  - How it works
-  - Best practices
-  - Troubleshooting
+### Feature / Upgrade Docs
+- **docs/AUTO_REGISTRATION.md** - Node auto-registration guide (LARK_NODE macro)
+- **docs/COLUMN_ENGINE_V4.md** - feed / compute / fetch column engine
+- **docs/RPC_AND_DAG_UPGRADES.md** - generic RPC framework and DAG upgrades
+- **docs/CONTEXT_API_CHANGES.md** - IContext API notes
 
 ## 🗺️ Navigation Flow
 
 ```
 README.md (Main Hub)
-    ├─→ docs/README_EN.md (English Project Docs)
-    │   └─→ docs/USAGE_EN.md (English Usage Guide)
-    │
-    └─→ docs/README_ZH.md (中文项目文档)
-        └─→ docs/USAGE_ZH.md (中文使用指南)
+    └─→ docs/README_EN.md (English Project Docs)
+        └─→ docs/USAGE_EN.md (English Usage Guide)
 ```
 
 ## 📊 File Sizes
 
 ```
-README.md        1.5K  (Language selector)
-docs/README_EN.md    10K    (English project docs)
-docs/README_ZH.md    9.8K   (Chinese project docs)
-docs/USAGE_EN.md     8.2K   (English usage guide)
-docs/USAGE_ZH.md     8.0K   (Chinese usage guide)
-CONTRIBUTING.md 9.0K   (Bilingual contribution guide)
+README.md            1.5K  (Project hub)
+docs/README_EN.md    10K   (English project docs)
+docs/USAGE_EN.md     8.2K  (English usage guide)
+CONTRIBUTING.md      9.0K  (Contribution guide)
 ```
 
 ## 🌐 Language Support
 
-| Document | English | Chinese | Notes |
-|----------|---------|---------|-------|
-| README.md | ✓ | ✓ | Main entry point |
-| docs/README_EN.md | ✓ | - | English only |
-| docs/README_ZH.md | - | ✓ | Chinese only |
-| docs/USAGE_EN.md | ✓ | - | English only |
-| docs/USAGE_ZH.md | - | ✓ | Chinese only |
-| CONTRIBUTING.md | ✓ | ✓ | Bilingual in one file |
-| docs/AUTO_REGISTRATION.md | ✓ | ✓ | Bilingual in one file |
-
-## �� Naming Convention
-
-- `*_EN.md` - English-only documents
-- `*_ZH.md` - Chinese-only documents
-- `*.md` (no suffix) - Bilingual or language selector
+| Document | English |
+|----------|---------|
+| README.md | ✓ |
+| docs/README_EN.md | ✓ |
+| docs/USAGE_EN.md | ✓ |
+| CONTRIBUTING.md | ✓ |
+| docs/AUTO_REGISTRATION.md | ✓ |
+| docs/COLUMN_ENGINE_V4.md | ✓ |
+| docs/RPC_AND_DAG_UPGRADES.md | ✓ |
 
 ## 🔗 Cross-References
 
 All documents include navigation links:
 - Back to main README
-- Switch language version
 - Related documents
 - Table of contents
 
 ---
 
-**Last updated**: 2024
+**Last updated**: 2026
 **Maintained by**: LARK team

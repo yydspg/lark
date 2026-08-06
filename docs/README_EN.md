@@ -8,9 +8,7 @@
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](https://isocpp.org/)
 [![Build Status](https://img.shields.io/badge/build-passing-brightgreen.svg)]()
 
-[Back to Main](../README.md) | [中文版本](README_ZH.md)
 
-**[Usage Guide](USAGE_EN.md)** | **[中文使用指南](USAGE_ZH.md)**
 
 </div>
 
@@ -250,6 +248,6 @@ copies or substantial portions of the Software.
 
 <div align="center">
 
-**[Back to Top](#lark---c20-dag-framework)** | **[中文版本](README_ZH.md)** | **[Main Page](README.md)**
 
 </div>
+

@@ -2,7 +2,6 @@
 
 <div align="center">
 
-[Back to README](README_EN.md) | [中文版本](USAGE_ZH.md)
 
 </div>
 
@@ -411,8 +410,8 @@ class RetryNode : public lark::Node {
 
 <div align="center">
 
-**[Back to README](README_EN.md)** | **[中文版本](USAGE_ZH.md)**
 
 **Happy coding with LARK! 🚀**
 
 </div>
+
