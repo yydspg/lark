@@ -44,7 +44,7 @@ add_library(lark_column
   src/column/biz/pipeline_compiler.cpp
 )
 target_include_directories(lark_column PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(lark_column PUBLIC lark_coro lark_monitor)
+target_link_libraries(lark_column PUBLIC lark_coro lark_metric)
 
 # SIMD optimization for column engine compute kernels
 # Platform detection:

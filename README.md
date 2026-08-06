@@ -28,7 +28,7 @@ lark/                       ← parent
 ├─ dag/     → liblark_dag    DAG business execution framework (depends on coro)
 ├─ column/  → liblark_column feed/compute/fetch column engine (depends on coro)
 ├─ rpc/     → liblark_rpc    generic RPC framework (gRPC/brpc/inproc wrappers)
-├─ monitor/ → liblark_monitor unified, pluggable monitoring abstraction
+├─ metric/  → liblark_metric unified, pluggable monitoring abstraction
 ├─ cache/   → liblark_cache  abstract cache (local / remote) + factory
 ├─ examples/
 └─ tests/
@@ -44,7 +44,7 @@ Link the aggregate `lark` target or any individual library.
 - 📄 [Auto-Registration Guide](docs/AUTO_REGISTRATION.md)
 - 📄 [Column Engine v4](docs/COLUMN_ENGINE_V4.md)
 - 📄 [RPC Framework & DAG Upgrades](docs/RPC_AND_DAG_UPGRADES.md)
-- 📄 [Monitor & Cache](docs/MONITOR_AND_CACHE.md)
+- 📄 [Metric & Cache](docs/METRIC_AND_CACHE.md)
 - 📄 [License](LICENSE) (MIT)
 
 ---

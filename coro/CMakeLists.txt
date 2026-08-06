@@ -9,4 +9,4 @@ add_library(lark_coro
   src/thread_pool.cpp
 )
 target_include_directories(lark_coro PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(lark_coro PUBLIC lark_monitor Threads::Threads)
+target_link_libraries(lark_coro PUBLIC lark_metric Threads::Threads)

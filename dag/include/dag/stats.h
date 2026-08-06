@@ -6,7 +6,7 @@
 #include <vector>
 
 #include "dag/node.h"
-#include "monitor/monitor.h"
+#include "metric/metric.h"
 
 namespace lark {
 
@@ -41,21 +41,21 @@ struct ExecutionStats {
 //   executor.Execute(graph, ctx);
 //   std::cout << stats.stats().summary();
 //
-// The executor emits lark::monitor::Event records; this collector turns the
+// The executor emits lark::metric::Event records; this collector turns the
 // dag "node.*" events back into the domain ExecutionStats model.
 // Thread-safe: callbacks fire from multiple workers.
 // ─────────────────────────────────────────────────────────────────────────────
-class StatsCollector : public monitor::Monitor {
+class StatsCollector : public metric::Monitor {
  public:
   StatsCollector() = default;
 
-  void Emit(const monitor::Event& event) override;
+  void Emit(const metric::Event& event) override;
 
   const ExecutionStats& stats() const noexcept { return stats_; }
   void Reset();
 
  private:
-  void HandleNodeEvent(const monitor::Event& event);
+  void HandleNodeEvent(const metric::Event& event);
 
   mutable std::mutex mutex_;
   ExecutionStats stats_;

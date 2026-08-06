@@ -10,8 +10,8 @@
 // picks whichever monitor fits (dev logging, aggregate stats, fan-out to a
 // metrics exporter, or a no-op in production).
 //
-//   auto mon = monitor::MonitorFactory::Instance().Create("logging");
-//   mon->Emit(monitor::Event{"cache", "cache.hit", "user:42"});
+//   auto mon = metric::MonitorFactory::Instance().Create("logging");
+//   mon->Emit(metric::Event{"cache", "cache.hit", "user:42"});
 
 #include <chrono>
 #include <cstddef>
@@ -25,7 +25,7 @@
 #include <unordered_map>
 #include <vector>
 
-namespace lark::monitor {
+namespace lark::metric {
 
 using Clock = std::chrono::steady_clock;
 using std::chrono::nanoseconds;
@@ -156,4 +156,4 @@ class MonitorFactory {
   std::unordered_map<std::string, MonitorFactoryFn> factories_;
 };
 
-}  // namespace lark::monitor
+}  // namespace lark::metric

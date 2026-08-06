@@ -20,18 +20,18 @@ LocalCache::LocalCache(CacheOptions options) : options_(std::move(options)) {}
 void LocalCache::Emit(const std::string& action, const std::string& key,
                       bool ok) {
   if (!options_.monitor) return;
-  ::lark::monitor::Event e{"cache", action, key};
+  ::lark::metric::Event e{"cache", action, key};
   e.ok = ok;
   options_.monitor->Emit(e);
 }
 
 bool LocalCache::IsExpired(const Entry& e,
-                           ::lark::monitor::Clock::time_point now) const {
+                           ::lark::metric::Clock::time_point now) const {
   return e.has_ttl && now >= e.expires_at;
 }
 
 std::optional<std::string> LocalCache::Get(const std::string& key) {
-  const auto now = ::lark::monitor::Clock::now();
+  const auto now = ::lark::metric::Clock::now();
   std::lock_guard<std::mutex> lock(mutex_);
   auto it = entries_.find(key);
   if (it == entries_.end()) {
@@ -53,7 +53,7 @@ std::optional<std::string> LocalCache::Get(const std::string& key) {
 
 void LocalCache::Put(const std::string& key, std::string value,
                      std::chrono::milliseconds ttl) {
-  const auto now = ::lark::monitor::Clock::now();
+  const auto now = ::lark::metric::Clock::now();
   std::lock_guard<std::mutex> lock(mutex_);
 
   const std::chrono::milliseconds t =
@@ -175,7 +175,7 @@ RemoteCache::RemoteCache(CacheOptions options,
 void RemoteCache::Emit(const std::string& action, const std::string& key,
                        bool ok) {
   if (!options_.monitor) return;
-  ::lark::monitor::Event e{"cache", action, key};
+  ::lark::metric::Event e{"cache", action, key};
   e.ok = ok;
   options_.monitor->Emit(e);
 }

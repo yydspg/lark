@@ -127,7 +127,7 @@ void EmitNodeEvent(context::ExecutionContext& ctx, const char* action,
                    const std::string& node_id, const std::string& op_type,
                    nanoseconds elapsed, bool ok) {
   if (!ctx.has_monitor()) return;
-  ::lark::monitor::Event e{"column", action, node_id};
+  ::lark::metric::Event e{"column", action, node_id};
   e.attr("op", op_type).attr_ns("elapsed_ns", elapsed.count());
   e.duration = elapsed;
   e.ok = ok;
@@ -280,7 +280,7 @@ void ComputeGraph::ReportRunSummary(context::ExecutionContext& ctx,
                                     std::size_t workers) {
   if (!ctx.has_monitor()) return;
   for (const auto& [module, acc] : state.modules) {
-    ::lark::monitor::Event e{"column", "module.end", module};
+    ::lark::metric::Event e{"column", "module.end", module};
     e.duration = acc.end - acc.start;
     e.attr("node_count", std::to_string(acc.count));
     ctx.monitor()->Emit(e);
@@ -291,7 +291,7 @@ void ComputeGraph::ReportRunSummary(context::ExecutionContext& ctx,
            static_cast<double>(wall.count() * workers);
     util = std::min(util, 1.0);
   }
-  ::lark::monitor::Event p{"column", "cpu.pressure", "compute"};
+  ::lark::metric::Event p{"column", "cpu.pressure", "compute"};
   p.attr("pool", "compute")
       .attr("utilization", std::to_string(util))
       .attr_ns("busy_ns", state.busy.count())

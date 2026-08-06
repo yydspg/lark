@@ -9,7 +9,7 @@
 #include <string>
 #include <vector>
 
-#include "monitor/monitor.h"
+#include "metric/metric.h"
 
 namespace lark::column::monitor {
 
@@ -63,26 +63,26 @@ struct RunStats {
 // ─────────────────────────────────────────────────────────────────────────────
 // StatsCollector: the column-engine monitoring implementation.
 //
-// It is an implementation of the unified lark::monitor::Monitor abstraction.
+// It is an implementation of the unified lark::metric::Monitor abstraction.
 // The framework (Pipeline / ComputeGraph / ExecutionContext) emits
-// lark::monitor::Event records; this collector turns the "column.*" events
+// lark::metric::Event records; this collector turns the "column.*" events
 // back into the domain RunStats model. Business code may attach any other
 // monitor implementation instead (e.g. a logging monitor in dev).
 // ─────────────────────────────────────────────────────────────────────────────
-class StatsCollector : public ::lark::monitor::Monitor {
+class StatsCollector : public ::lark::metric::Monitor {
  public:
   StatsCollector() = default;
 
-  void Emit(const ::lark::monitor::Event& event) override;
+  void Emit(const ::lark::metric::Event& event) override;
 
   RunStats& stats() noexcept { return stats_; }
   const RunStats& stats() const noexcept { return stats_; }
 
  private:
-  void HandlePhase(const ::lark::monitor::Event& event);
-  void HandleNode(const ::lark::monitor::Event& event);
-  void HandleModule(const ::lark::monitor::Event& event);
-  void HandleCpuPressure(const ::lark::monitor::Event& event);
+  void HandlePhase(const ::lark::metric::Event& event);
+  void HandleNode(const ::lark::metric::Event& event);
+  void HandleModule(const ::lark::metric::Event& event);
+  void HandleCpuPressure(const ::lark::metric::Event& event);
 
   // Derive the module name from a node id ("<module>/...") — falls back to the
   // full id when there is no separator.

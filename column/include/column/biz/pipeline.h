@@ -54,7 +54,7 @@ class Pipeline {
   Pipeline& set_backend(std::shared_ptr<backend::Backend> backend);
   // Attach any unified monitor implementation; a StatsCollector is always
   // installed internally so pipeline.stats() works out of the box.
-  Pipeline& set_monitor(std::shared_ptr<::lark::monitor::Monitor> monitor);
+  Pipeline& set_monitor(std::shared_ptr<::lark::metric::Monitor> monitor);
   Pipeline& set_compute_workers(size_t n);
 
   // Compile registered modules into the global compute graph. Called
@@ -112,9 +112,9 @@ class Pipeline {
   std::shared_ptr<backend::Backend> backend_;
   std::vector<std::shared_ptr<Module>> modules_;
   std::unordered_set<std::string> module_names_;
-  std::shared_ptr<::lark::monitor::Monitor> monitor_;      // user-supplied
+  std::shared_ptr<::lark::metric::Monitor> monitor_;      // user-supplied
   std::shared_ptr<monitor::StatsCollector> stats_;         // internal collector
-  std::shared_ptr<::lark::monitor::CompositeMonitor> chaining_;  // stats + user
+  std::shared_ptr<::lark::metric::CompositeMonitor> chaining_;  // stats + user
   size_t compute_workers_;
 
   context::ExecutionContext ctx_;

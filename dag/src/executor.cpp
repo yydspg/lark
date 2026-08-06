@@ -12,7 +12,7 @@
 #include "dag/default_context.h"
 #include "dag/graph.h"
 #include "dag/node.h"
-#include "monitor/monitor.h"
+#include "metric/metric.h"
 
 namespace lark {
 
@@ -51,10 +51,10 @@ std::string DescribeError(const exception_ptr& error) {
 }
 
 // Build a node event with the common per-node attributes.
-monitor::Event NodeEvent(const Node& node, const char* action,
+metric::Event NodeEvent(const Node& node, const char* action,
                          const char* status, nanoseconds elapsed,
                          nanoseconds started, const std::string& error = {}) {
-  monitor::Event e{"dag", action, node.id()};
+  metric::Event e{"dag", action, node.id()};
   e.attr("type", node.type()).attr("status", status);
   if (elapsed.count() >= 0) e.attr_ns("elapsed_ns", elapsed.count());
   e.attr_ns("started_ns", started.count());
@@ -82,7 +82,7 @@ Executor::Executor(size_t compute_threads, size_t io_threads,
 
 Executor::~Executor() = default;
 
-void Executor::SetMonitor(shared_ptr<monitor::Monitor> monitor) {
+void Executor::SetMonitor(shared_ptr<metric::Monitor> monitor) {
   monitor_ = move(monitor);
 }
 

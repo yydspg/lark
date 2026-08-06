@@ -14,7 +14,7 @@
 //                backend and with gRPC/brpc when configured.
 //
 // Both implementations emit cache.* events into the configured
-// lark::monitor::Monitor (also pluggable), so caching is observable end-to-end.
+// lark::metric::Monitor (also pluggable), so caching is observable end-to-end.
 
 #include <chrono>
 #include <cstddef>
@@ -27,7 +27,7 @@
 #include <unordered_map>
 #include <vector>
 
-#include "monitor/monitor.h"
+#include "metric/metric.h"
 #include "rpc/channel.h"
 #include "rpc/service.h"
 #include "rpc/status.h"
@@ -41,7 +41,7 @@ struct CacheOptions {
   std::size_t capacity = 1024;                       // 0 = unlimited entries
   std::chrono::milliseconds default_ttl{0};          // 0 = no expiry
   std::string name = "cache";
-  std::shared_ptr<::lark::monitor::Monitor> monitor;  // pluggable (may be null)
+  std::shared_ptr<::lark::metric::Monitor> monitor;  // pluggable (may be null)
 
   CacheOptions() = default;
   CacheOptions(std::size_t capacity, std::chrono::milliseconds ttl)
@@ -87,11 +87,11 @@ class LocalCache final : public Cache {
   struct Entry {
     std::string value;
     bool has_ttl = false;
-    ::lark::monitor::Clock::time_point expires_at{};
+    ::lark::metric::Clock::time_point expires_at{};
   };
 
   void Emit(const std::string& action, const std::string& key, bool ok = true);
-  bool IsExpired(const Entry& e, ::lark::monitor::Clock::time_point now) const;
+  bool IsExpired(const Entry& e, ::lark::metric::Clock::time_point now) const;
 
   mutable std::mutex mutex_;
   CacheOptions options_;

@@ -111,9 +111,9 @@ class RankNode : public lark::Node {
 LARK_NODE("rank", RankNode);  // Auto-registered!
 
 // A monitor that logs each node's outcome (thread-safe).
-class ConsoleMonitor : public lark::monitor::Monitor {
+class ConsoleMonitor : public lark::metric::Monitor {
  public:
-  void Emit(const lark::monitor::Event& e) override {
+  void Emit(const lark::metric::Event& e) override {
     if (e.source != "dag") return;
     std::lock_guard<std::mutex> lock(mutex_);
     const std::string* elapsed = e.Get("elapsed_ns");

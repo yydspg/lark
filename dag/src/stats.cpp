@@ -39,7 +39,7 @@ std::string ExecutionStats::summary() const {
   return os.str();
 }
 
-void StatsCollector::HandleNodeEvent(const monitor::Event& event) {
+void StatsCollector::HandleNodeEvent(const metric::Event& event) {
   // Terminal node events carry the status / elapsed / started_at attributes;
   // "node.start" is informational only and is skipped here.
   const std::string* status_str = event.Get("status");
@@ -70,7 +70,7 @@ void StatsCollector::HandleNodeEvent(const monitor::Event& event) {
   stats_.nodes.push_back(std::move(rec));
 }
 
-void StatsCollector::Emit(const monitor::Event& event) {
+void StatsCollector::Emit(const metric::Event& event) {
   if (event.source != "dag") return;
   if (event.action.rfind("node.", 0) == 0) {
     HandleNodeEvent(event);

@@ -98,7 +98,7 @@ std::string StatsCollector::ModuleOf(const std::string& node_id) {
 
 // ---- event handling --------------------------------------------------------
 
-void StatsCollector::HandlePhase(const ::lark::monitor::Event& event) {
+void StatsCollector::HandlePhase(const ::lark::metric::Event& event) {
   std::lock_guard<std::mutex> lock(mutex_);
   if (event.action == "feed.end")
     stats_.feed_elapsed = event.duration;
@@ -108,7 +108,7 @@ void StatsCollector::HandlePhase(const ::lark::monitor::Event& event) {
     stats_.fetch_elapsed = event.duration;
 }
 
-void StatsCollector::HandleNode(const ::lark::monitor::Event& event) {
+void StatsCollector::HandleNode(const ::lark::metric::Event& event) {
   std::lock_guard<std::mutex> lock(mutex_);
   const std::string* op = event.Get("op");
   stats_.ops.push_back(
@@ -116,7 +116,7 @@ void StatsCollector::HandleNode(const ::lark::monitor::Event& event) {
                event.duration});
 }
 
-void StatsCollector::HandleModule(const ::lark::monitor::Event& event) {
+void StatsCollector::HandleModule(const ::lark::metric::Event& event) {
   std::lock_guard<std::mutex> lock(mutex_);
   const std::string* count = event.Get("node_count");
   stats_.modules.push_back(
@@ -124,7 +124,7 @@ void StatsCollector::HandleModule(const ::lark::monitor::Event& event) {
                    count ? static_cast<std::size_t>(std::stoull(*count)) : 0});
 }
 
-void StatsCollector::HandleCpuPressure(const ::lark::monitor::Event& event) {
+void StatsCollector::HandleCpuPressure(const ::lark::metric::Event& event) {
   std::lock_guard<std::mutex> lock(mutex_);
   const std::string* pool = event.Get("pool");
   const std::string* busy = event.Get("busy_ns");
@@ -141,7 +141,7 @@ void StatsCollector::HandleCpuPressure(const ::lark::monitor::Event& event) {
   stats_.pressure.push_back(std::move(p));
 }
 
-void StatsCollector::Emit(const ::lark::monitor::Event& event) {
+void StatsCollector::Emit(const ::lark::metric::Event& event) {
   if (event.source != "column") return;
   if (event.action == "feed.end" || event.action == "compute.end" ||
       event.action == "fetch.end") {

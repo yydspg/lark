@@ -5,20 +5,20 @@
 //
 // Business code programs against the abstract Cache interface; the concrete
 // implementation is chosen via CacheFactory ("local" / "remote"), and every
-// operation reports into a pluggable lark::monitor::Monitor.
+// operation reports into a pluggable lark::metric::Monitor.
 
 #include <iostream>
 #include <memory>
 
 #include "cache/cache.h"
-#include "monitor/monitor.h"
+#include "metric/metric.h"
 #include "rpc/rpc.h"
 
 using namespace lark;
 
 int main() {
   // Pick a monitoring implementation per environment (dev / prod).
-  auto monitor = monitor::MonitorFactory::Instance().Create("stats");
+  auto monitor = metric::MonitorFactory::Instance().Create("stats");
 
   // 1) Local cache.
   cache::CacheOptions local_opts;
@@ -53,6 +53,6 @@ int main() {
 
   server->Stop();
 
-  std::cout << "\n" << std::dynamic_pointer_cast<monitor::StatsMonitor>(monitor)->summary();
+  std::cout << "\n" << std::dynamic_pointer_cast<metric::StatsMonitor>(monitor)->summary();
   return 0;
 }

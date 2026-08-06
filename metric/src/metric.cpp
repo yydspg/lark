@@ -1,12 +1,12 @@
 // Copyright (c) 2024 LARK Contributors
 // SPDX-License-Identifier: MIT
 
-#include "monitor/monitor.h"
+#include "metric/metric.h"
 
 #include <sstream>
 #include <stdexcept>
 
-namespace lark::monitor {
+namespace lark::metric {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // LoggingMonitor
@@ -146,4 +146,4 @@ std::vector<std::string> MonitorFactory::Available() const {
   return names;
 }
 
-}  // namespace lark::monitor
+}  // namespace lark::metric

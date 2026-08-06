@@ -14,7 +14,7 @@
 
 #include "cache/cache.h"
 #include "coro/thread_pool.h"
-#include "monitor/monitor.h"
+#include "metric/metric.h"
 #include "rpc/rpc.h"
 
 namespace {
@@ -56,19 +56,19 @@ using namespace std::chrono_literals;
 void TestMonitorModule() {
   std::cout << "Test monitor module...\n";
 
-  auto& factory = lark::monitor::MonitorFactory::Instance();
+  auto& factory = lark::metric::MonitorFactory::Instance();
   for (const auto& name : {"null", "logging", "stats", "composite"}) {
     CHECK(factory.Contains(name));
   }
   CHECK_THROWS([&] { factory.Create("nope"); });
 
   // stats monitor aggregates
-  auto stats = std::make_shared<lark::monitor::StatsMonitor>();
-  lark::monitor::Event hit{"cache", "cache.hit", "k1"};
+  auto stats = std::make_shared<lark::metric::StatsMonitor>();
+  lark::metric::Event hit{"cache", "cache.hit", "k1"};
   hit.duration = 10ms;
   stats->Emit(hit);
   stats->Emit(hit);
-  lark::monitor::Event miss{"cache", "cache.miss", "k2"};
+  lark::metric::Event miss{"cache", "cache.miss", "k2"};
   miss.ok = false;
   stats->Emit(miss);
   CHECK(stats->event_count() == 3);
@@ -77,8 +77,8 @@ void TestMonitorModule() {
   CHECK(stats->summary().find("cache.hit") != std::string::npos);
 
   // composite fans out
-  auto composite = std::make_shared<lark::monitor::CompositeMonitor>();
-  auto stats2 = std::make_shared<lark::monitor::StatsMonitor>();
+  auto composite = std::make_shared<lark::metric::CompositeMonitor>();
+  auto stats2 = std::make_shared<lark::metric::StatsMonitor>();
   composite->Add(stats2);
   composite->Add(stats);
   composite->Emit(hit);
@@ -87,7 +87,7 @@ void TestMonitorModule() {
 
   // logging monitor writes a line
   std::ostringstream os;
-  lark::monitor::LoggingMonitor log(os);
+  lark::metric::LoggingMonitor log(os);
   log.Emit(hit);
   CHECK(os.str().find("cache.hit") != std::string::npos);
 
@@ -97,7 +97,7 @@ void TestMonitorModule() {
 void TestCoroPoolMonitoring() {
   std::cout << "Test coro pool monitoring...\n";
   lark::coro::ThreadPool pool(1);
-  auto stats = std::make_shared<lark::monitor::StatsMonitor>();
+  auto stats = std::make_shared<lark::metric::StatsMonitor>();
   pool.SetMonitor(stats);
   pool.Enqueue(std::noop_coroutine());
   std::this_thread::sleep_for(20ms);
@@ -111,9 +111,9 @@ void TestCoroPoolMonitoring() {
 // Cache module
 // ─────────────────────────────────────────────────────────────────────────────
 
-class CountingMonitor : public lark::monitor::Monitor {
+class CountingMonitor : public lark::metric::Monitor {
  public:
-  void Emit(const lark::monitor::Event& e) override {
+  void Emit(const lark::metric::Event& e) override {
     if (e.action == "cache.hit") ++hits;
     else if (e.action == "cache.miss") ++misses;
     else if (e.action == "cache.put") ++puts;

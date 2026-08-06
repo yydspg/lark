@@ -29,7 +29,7 @@ void ExecutionContext::set_fetch(TensorTable table) {
 }
 
 void ExecutionContext::set_monitor(
-    std::shared_ptr<::lark::monitor::Monitor> monitor) {
+    std::shared_ptr<::lark::metric::Monitor> monitor) {
   monitor_ = std::move(monitor);
 }
 

@@ -1,13 +1,13 @@
-# Monitor & Cache Modules
+# Metric # Monitor & Cache Modules Cache Modules
 
-## Monitor (`monitor/` → liblark_monitor)
+## Metric (`metric/` → liblark_metric)
 
 A unified, **pluggable monitoring abstraction**. Every module (dag, column,
 rpc, coro, cache) reports through the same generic interface, and business code
 selects the concrete implementation per environment:
 
 ```cpp
-auto mon = monitor::MonitorFactory::Instance().Create("stats");  // or "logging" / "null" / "composite"
+auto mon = metric::MonitorFactory::Instance().Create("stats");  // or "logging" / "null" / "composite"
 ```
 
 - `Event` — generic observation: `source` ("dag"/"column"/"rpc"/"coro"/"cache"),
@@ -50,7 +50,7 @@ auto v = remote->Get("user:2");
   registered.
 
 Both implementations emit `cache.hit` / `cache.miss` / `cache.put` /
-`cache.evict` events into the configured `monitor::Monitor`, so caching is
+`cache.evict` events into the configured `metric::Monitor`, so caching is
 observable end-to-end alongside dag / column / rpc / coro events.
 
 See `examples/cache_example.cpp` and `tests/test_cache.cpp`.

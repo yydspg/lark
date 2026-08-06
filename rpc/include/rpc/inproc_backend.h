@@ -40,7 +40,7 @@ class InProcChannel : public RpcChannel {
   // Finalize a call and (optionally) emit an "rpc.call" event.
   RpcStatus Finish(const RpcCallOptions& options, const std::string& service,
                    const std::string& method,
-                   ::lark::monitor::Clock::time_point start,
+                   ::lark::metric::Clock::time_point start,
                    RpcStatus status);
 
   RpcEndpoint endpoint_;

@@ -8,7 +8,7 @@
 #include <string>
 #include <unordered_map>
 
-#include "monitor/monitor.h"
+#include "metric/metric.h"
 
 namespace lark::rpc {
 
@@ -21,7 +21,7 @@ struct RpcCallOptions {
   // Transport metadata propagated to the server (deadlines, tracing ids, ...).
   std::unordered_map<std::string, std::string> metadata;
   // Optional unified monitor: the channel emits an "rpc.call" event when set.
-  std::shared_ptr<::lark::monitor::Monitor> monitor;
+  std::shared_ptr<::lark::metric::Monitor> monitor;
 
   RpcCallOptions() = default;
   explicit RpcCallOptions(std::chrono::milliseconds timeout) : timeout(timeout) {}

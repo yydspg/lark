@@ -55,7 +55,7 @@ Business code works with rows and modules; the engine computes over columns.
   small pool never deadlocks on a wide graph.
 - **ExecutionContext** — per-run context distinguishing the `feed / compute / fetch`
   phases, holding the feed table, the intermediate `TensorStore`, and the fetch table.
-- **Generic monitoring** — `monitor::ExecutionMonitor` + `StatsCollector` report
+- **Generic monitoring** — `metric::Monitor` (unified monitor module) + `StatsCollector` report
   per-module compute time, feed time, fetch time, per-op timings and **CPU pressure
   distribution** (busy / wall × workers).
 

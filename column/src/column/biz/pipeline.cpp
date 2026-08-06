@@ -21,7 +21,7 @@ Pipeline::Pipeline(std::unique_ptr<backend::Backend> backend, size_t compute_wor
       compute_workers_(compute_workers == 0 ? std::thread::hardware_concurrency()
                                             : compute_workers) {
   stats_ = std::make_shared<monitor::StatsCollector>();
-  chaining_ = std::make_shared<::lark::monitor::CompositeMonitor>();
+  chaining_ = std::make_shared<::lark::metric::CompositeMonitor>();
   chaining_->Add(stats_);
   ctx_.set_monitor(chaining_);
 }
@@ -45,10 +45,10 @@ Pipeline& Pipeline::set_backend(std::shared_ptr<backend::Backend> backend) {
   return *this;
 }
 
-Pipeline& Pipeline::set_monitor(std::shared_ptr<::lark::monitor::Monitor> monitor) {
+Pipeline& Pipeline::set_monitor(std::shared_ptr<::lark::metric::Monitor> monitor) {
   monitor_ = std::move(monitor);
   // Rebuild the fan-out: internal StatsCollector + the user-supplied monitor.
-  auto chaining = std::make_shared<::lark::monitor::CompositeMonitor>();
+  auto chaining = std::make_shared<::lark::metric::CompositeMonitor>();
   chaining->Add(stats_);
   if (monitor_) chaining->Add(monitor_);
   chaining_ = chaining;
@@ -67,26 +67,26 @@ Pipeline& Pipeline::set_compute_workers(size_t n) {
 // ─────────────────────────────────────────────────────────────────────────────
 
 void Pipeline::NotifyFeedStart() {
-  chaining_->Emit(::lark::monitor::Event{"column", "feed.start", "feed"});
+  chaining_->Emit(::lark::metric::Event{"column", "feed.start", "feed"});
 }
 void Pipeline::NotifyFeedEnd() {
-  ::lark::monitor::Event e{"column", "feed.end", "feed"};
+  ::lark::metric::Event e{"column", "feed.end", "feed"};
   e.duration = ctx_.phase_elapsed(RunPhase::kFeed);
   chaining_->Emit(e);
 }
 void Pipeline::NotifyComputeStart() {
-  chaining_->Emit(::lark::monitor::Event{"column", "compute.start", "compute"});
+  chaining_->Emit(::lark::metric::Event{"column", "compute.start", "compute"});
 }
 void Pipeline::NotifyComputeEnd() {
-  ::lark::monitor::Event e{"column", "compute.end", "compute"};
+  ::lark::metric::Event e{"column", "compute.end", "compute"};
   e.duration = ctx_.phase_elapsed(RunPhase::kCompute);
   chaining_->Emit(e);
 }
 void Pipeline::NotifyFetchStart() {
-  chaining_->Emit(::lark::monitor::Event{"column", "fetch.start", "fetch"});
+  chaining_->Emit(::lark::metric::Event{"column", "fetch.start", "fetch"});
 }
 void Pipeline::NotifyFetchEnd() {
-  ::lark::monitor::Event e{"column", "fetch.end", "fetch"};
+  ::lark::metric::Event e{"column", "fetch.end", "fetch"};
   e.duration = ctx_.phase_elapsed(RunPhase::kFetch);
   chaining_->Emit(e);
 }

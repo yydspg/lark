@@ -40,7 +40,7 @@ void ThreadPool::Enqueue(std::coroutine_handle<> handle) {
     queue_.push_back(handle);
   }
   if (monitor_) {
-    monitor_->Emit(::lark::monitor::Event{"coro", "pool.enqueue", ""}
+    monitor_->Emit(::lark::metric::Event{"coro", "pool.enqueue", ""}
                        .attr("pool", std::to_string(workers_.size())));
   }
   cv_.notify_one();

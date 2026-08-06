@@ -9,7 +9,7 @@
 #include <thread>
 #include <vector>
 
-#include "monitor/monitor.h"
+#include "metric/metric.h"
 
 namespace lark::coro {
 
@@ -36,7 +36,7 @@ class ThreadPool {
   size_t size() const noexcept;
 
   // Install a unified monitor implementation for scheduling events.
-  void SetMonitor(std::shared_ptr<monitor::Monitor> monitor) noexcept {
+  void SetMonitor(std::shared_ptr<metric::Monitor> monitor) noexcept {
     monitor_ = std::move(monitor);
   }
 
@@ -66,7 +66,7 @@ class ThreadPool {
   std::mutex mutex_;
   std::condition_variable cv_;
   bool stop_ = false;
-  std::shared_ptr<monitor::Monitor> monitor_;
+  std::shared_ptr<metric::Monitor> monitor_;
 };
 
 }  // namespace lark::coro
