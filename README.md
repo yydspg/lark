@@ -38,6 +38,17 @@ Each subproject has its own `CMakeLists.txt` and `include/` + `src/`, with
 dependencies declared via `target_link_libraries` (like Maven/Gradle modules).
 Link the aggregate `lark` target or any individual library.
 
+### Subproject READMEs
+
+| Subproject | Library | README |
+|------------|---------|--------|
+| `coro/` | liblark_coro | [coro/README.md](coro/README.md) |
+| `dag/` | liblark_dag | [dag/README.md](dag/README.md) |
+| `column/` | liblark_column | [column/README.md](column/README.md) |
+| `rpc/` | liblark_rpc | [rpc/README.md](rpc/README.md) |
+| `metric/` | liblark_metric | [metric/README.md](metric/README.md) |
+| `cache/` | liblark_cache | [cache/README.md](cache/README.md) |
+
 ### Other Documentation
 
 - 📄 [Contributing Guide](CONTRIBUTING.md)
