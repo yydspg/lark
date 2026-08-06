@@ -85,6 +85,11 @@ class SkipExpensive : public lark::dag::OpAspect {          // (aspect)
   `ShouldSkip` (condition-based **auto-skip**, unlike op-internal skip logic),
   `OnBefore`, `OnAfter`. Apply tracing / flags / feature switches uniformly.
 - **`dag::OpGraph`** — `AddOp` / `DependsOn` / `AddAspect`; validates & topo-sorts.
+- **Declarative building** (`dag::OpGraphBuilder` + `dag::OpRegistry`) — ops are
+  auto-collected by type name (`LARK_OP`, Spring-IOC style) and graphs are built
+  from a **KV** form (`OpDef{type, deps, id}`) or a small **arrow DSL**
+  (`fetch:DataFetchOp -> select:SelectOp -> rank:RankOp`), both parsed with the
+  shared `toolkit::dsl` framework.
 - **`dag::OpExecutor`** — every op runs **fully asynchronously on the dedicated
   dag thread pool** (`coro::Pools` kDag), composed via `coro::Future` chains;
   emits `metric` `"dag"` `op.*` events; op failures don't poison dependents.

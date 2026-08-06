@@ -15,11 +15,11 @@ namespace lark::dag {
 // ─────────────────────────────────────────────────────────────────────────────
 const std::vector<Op*> OpGraph::kEmptyDeps;
 
-OpGraph& OpGraph::AddOp(std::shared_ptr<Op> op) {
+OpGraph& OpGraph::AddOp(std::shared_ptr<Op> op, std::string id) {
   if (!op) throw std::invalid_argument("OpGraph: null op");
-  if (!by_name_.emplace(op->Name(), op.get()).second) {
-    throw std::invalid_argument("OpGraph: duplicate op name '" + op->Name() +
-                                "'");
+  if (id.empty()) id = op->Name();
+  if (!by_id_.emplace(id, op.get()).second) {
+    throw std::invalid_argument("OpGraph: duplicate node id '" + id + "'");
   }
   ops_.push_back(std::move(op));
   compiled_ = false;
@@ -33,12 +33,12 @@ OpGraph& OpGraph::AddAspect(std::shared_ptr<OpAspect> aspect) {
 
 OpGraph& OpGraph::DependsOn(const std::string& dep,
                             const std::string& dependent) {
-  auto dep_it = by_name_.find(dep);
-  auto depnd_it = by_name_.find(dependent);
-  if (dep_it == by_name_.end()) {
+  auto dep_it = by_id_.find(dep);
+  auto depnd_it = by_id_.find(dependent);
+  if (dep_it == by_id_.end()) {
     throw std::invalid_argument("OpGraph: unknown dependency '" + dep + "'");
   }
-  if (depnd_it == by_name_.end()) {
+  if (depnd_it == by_id_.end()) {
     throw std::invalid_argument("OpGraph: unknown dependent '" + dependent +
                                 "'");
   }

@@ -47,3 +47,8 @@ add_executable(test_op test_op.cpp)
 target_link_libraries(test_op PRIVATE lark)
 
 add_test(NAME test_op COMMAND test_op)
+
+add_executable(test_op_dsl test_op_dsl.cpp)
+target_link_libraries(test_op_dsl PRIVATE lark)
+
+add_test(NAME test_op_dsl COMMAND test_op_dsl)

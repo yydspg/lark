@@ -181,6 +181,70 @@ void TestHash() {
   std::cout << "  done\n";
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// dsl framework (shared lexer/parser reused by column + dag DSLs)
+// ─────────────────────────────────────────────────────────────────────────────
+void TestDslFramework() {
+  std::cout << "Test dsl framework...\n";
+
+  using namespace lark::toolkit::dsl;
+
+  // A tiny custom grammar on top of the shared framework: "name [:tag] -> age".
+  class MiniParser : public Parser {
+   public:
+    MiniParser(const std::string& src)
+        : Parser(src, ":", {"->"}) {}
+
+    struct Record {
+      std::string name;
+      std::string tag;
+      int age = 0;
+    };
+
+    Record Parse() {
+      const Token name = ExpectToken(TokenKind::kIdent, "name");
+      std::string tag = name.text;
+      if (MatchSymbol(":")) {
+        tag = ExpectToken(TokenKind::kIdent, "tag").text;
+      }
+      ExpectSymbol("->", "'->'");
+      const Token age = ExpectToken(TokenKind::kNumber, "age");
+      return Record{name.text, tag, static_cast<int>(age.number)};
+    }
+  };
+
+  MiniParser p("alice:user -> 30");
+  auto r = p.Parse();
+  CHECK(r.name == "alice" && r.tag == "user" && r.age == 30);
+
+  // bare form + comment
+  MiniParser p2("bob -> 25 # inline comment");
+  auto r2 = p2.Parse();
+  CHECK(r2.name == "bob" && r2.tag == "bob" && r2.age == 25);
+
+  // errors carry a position
+  bool threw = false;
+  try {
+    MiniParser bad("x -> notanumber");
+    (void)bad.Parse();
+  } catch (const DslError& e) {
+    threw = true;
+    CHECK(e.Line() == 1);
+  }
+  CHECK(threw);
+
+  // shared by both DSLs: lexer handles multi-char symbols (->, >=, ...)
+  Lexer lex("a->b >= 3", "+->=<>", {">=", "->"});
+  CHECK(lex.Next().text == "a");
+  CHECK(lex.Next().text == "->");
+  CHECK(lex.Next().text == "b");
+  CHECK(lex.Next().text == ">=");
+  CHECK(lex.Next().kind == TokenKind::kNumber);
+  CHECK(lex.AtEnd());
+
+  std::cout << "  done\n";
+}
+
 }  // namespace
 
 int main() {
@@ -190,6 +254,7 @@ int main() {
   TestTime();
   TestScope();
   TestHash();
+  TestDslFramework();
 
   std::cout << "\n" << (g_checks - g_failures) << "/" << g_checks
             << " checks passed\n";

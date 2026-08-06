@@ -22,7 +22,8 @@ the **business layer** and the **execution layer**.
   `Pipeline::fetch(names)` (column → row).
 - **Anonymous/temp nodes** — the framework wires modules together with
   `@in` / `@out` / `@dep` boundary nodes and module-local temp columns.
-- **DSL** — declare sub-graphs in a tiny expression language:
+- **DSL** — declare sub-graphs in a tiny expression language (parsed with the
+  shared `toolkit::dsl` framework, reused by the dag arrow DSL):
   ```
   scaled = x * 2
   score  = scaled + y

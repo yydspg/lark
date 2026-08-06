@@ -20,6 +20,8 @@
 #include "dag/op.h"
 #include "dag/op_executor.h"
 #include "dag/op_graph.h"
+#include "dag/op_graph_builder.h"
+#include "dag/op_registry.h"
 #include "dag/schedule.h"
 #include "dag/stats.h"
 #include "metric/metric.h"

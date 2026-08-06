@@ -3,131 +3,15 @@
 
 #include "column/biz/dsl.h"
 
-#include <cctype>
 #include <cmath>
-#include <stdexcept>
 #include <string>
+
+#include "toolkit/dsl.h"
 
 namespace lark::column::biz::dsl {
 
 namespace {
 
-// ─────────────────────────────────────────────────────────────────────────────
-// Tokenizer
-// ─────────────────────────────────────────────────────────────────────────────
-enum class TokKind { kNumber, kIdent, kOp, kAssign, kLParen, kRParen, kComma, kEnd };
-
-struct Token {
-  TokKind kind;
-  std::string text;
-  double number = 0.0;
-};
-
-class Lexer {
- public:
-  explicit Lexer(const std::string& src) : src_(src) {}
-
-  Token Next() {
-    SkipSpaces();
-    if (pos_ >= src_.size()) return Token{TokKind::kEnd, ""};
-    const char c = src_[pos_];
-    if (std::isdigit(static_cast<unsigned char>(c)) || c == '.') {
-      const size_t start = pos_;
-      while (pos_ < src_.size() &&
-             (std::isdigit(static_cast<unsigned char>(src_[pos_])) ||
-              src_[pos_] == '.'))
-        ++pos_;
-      const std::string text = src_.substr(start, pos_ - start);
-      return Token{TokKind::kNumber, text, std::stod(text)};
-    }
-    if (std::isalpha(static_cast<unsigned char>(c)) || c == '_') {
-      const size_t start = pos_;
-      while (pos_ < src_.size() &&
-             (std::isalnum(static_cast<unsigned char>(src_[pos_])) ||
-              src_[pos_] == '_'))
-        ++pos_;
-      return Token{TokKind::kIdent, src_.substr(start, pos_ - start)};
-    }
-    switch (c) {
-      case '(':
-        ++pos_;
-        return Token{TokKind::kLParen, "("};
-      case ')':
-        ++pos_;
-        return Token{TokKind::kRParen, ")"};
-      case ',':
-        ++pos_;
-        return Token{TokKind::kComma, ","};
-      case '=':
-        ++pos_;
-        return Token{TokKind::kAssign, "="};
-      case '>':
-      case '<':
-      case '!':
-      case '+':
-      case '-':
-      case '*':
-      case '/': {
-        std::string text(1, c);
-        ++pos_;
-        if ((c == '>' || c == '<' || c == '!') && pos_ < src_.size() &&
-            src_[pos_] == '=') {
-          text += '=';
-          ++pos_;
-        }
-        return Token{TokKind::kOp, text};
-      }
-      default:
-        throw std::invalid_argument("dsl: unexpected character '" +
-                                    std::string(1, c) + "'");
-    }
-  }
-
-  bool Match(TokKind kind) {
-    if (peek_.kind == kind) {
-      Consume();
-      return true;
-    }
-    return false;
-  }
-
-  const Token& Peek() {
-    if (!peeked_) {
-      peek_ = Next();
-      peeked_ = true;
-    }
-    return peek_;
-  }
-
-  Token Consume() {
-    Token t = Peek();
-    peeked_ = false;
-    return t;
-  }
-
-  void Expect(TokKind kind, const char* what) {
-    const Token& t = Peek();
-    if (t.kind != kind)
-      throw std::invalid_argument(std::string("dsl: expected ") + what);
-    Consume();
-  }
-
- private:
-  void SkipSpaces() {
-    while (pos_ < src_.size() &&
-           std::isspace(static_cast<unsigned char>(src_[pos_])))
-      ++pos_;
-  }
-
-  const std::string& src_;
-  size_t pos_ = 0;
-  Token peek_{TokKind::kEnd, ""};
-  bool peeked_ = false;
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
-// Recursive-descent parser → business ops
-// ─────────────────────────────────────────────────────────────────────────────
 std::string Format(double v) {
   if (std::floor(v) == v && std::isfinite(v)) {
     return std::to_string(static_cast<long long>(v));
@@ -135,18 +19,23 @@ std::string Format(double v) {
   return std::to_string(v);
 }
 
-class Parser {
+// Expression parser built on the shared toolkit::dsl framework.
+class ExprParser : public lark::toolkit::dsl::Parser {
  public:
-  explicit Parser(const std::string& src) : lex_(src) {}
+  explicit ExprParser(const std::string& src)
+      : Parser(src, "+-*/=(),<>!", {">=", "<=", "==", "!="}) {}
 
   std::vector<exec::OpSpec> Parse() {
-    while (lex_.Peek().kind != TokKind::kEnd) {
+    while (!AtEnd()) {
       ParseStatement();
     }
     return ops_;
   }
 
  private:
+  using Token = lark::toolkit::dsl::Token;
+  using TokenKind = lark::toolkit::dsl::TokenKind;
+
   struct Value {
     bool is_literal = false;
     double literal = 0.0;
@@ -156,10 +45,11 @@ class Parser {
   std::string Temp() { return "@t" + std::to_string(tmp_++); }
 
   void ParseStatement() {
-    const Token lhs = lex_.Consume();
-    if (lhs.kind != TokKind::kIdent)
-      throw std::invalid_argument("dsl: statement must start with an identifier");
-    lex_.Expect(TokKind::kAssign, "'='");
+    const Token lhs = Consume();
+    if (lhs.kind != TokenKind::kIdent) {
+      Fail("dsl: statement must start with an identifier");
+    }
+    ExpectSymbol("=", "'='");
     Value v = ParseExpr(0);
     Assign(lhs.text, v);
   }
@@ -202,11 +92,11 @@ class Parser {
   Value ParseExpr(int min_prec) {
     Value left = ParsePrimary();
     for (;;) {
-      const Token& t = lex_.Peek();
-      if (t.kind != TokKind::kOp) break;
+      const Token& t = Peek();
+      if (t.kind != TokenKind::kSymbol) break;
       const int prec = Precedence(t.text);
       if (prec < min_prec) break;
-      lex_.Consume();
+      Consume();
       const std::string op = t.text;
       Value right = ParseExpr(prec + 1);
       left = MakeBinary(left, right, op);
@@ -264,29 +154,28 @@ class Parser {
   }
 
   Value ParsePrimary() {
-    const Token t = lex_.Consume();
-    if (t.kind == TokKind::kNumber) return Lit(t.number);
-    if (t.kind == TokKind::kIdent) {
-      const Token& next = lex_.Peek();
-      if (next.kind == TokKind::kLParen) {
-        lex_.Consume();
+    const Token t = Consume();
+    if (t.kind == TokenKind::kNumber) return Lit(t.number);
+    if (t.kind == TokenKind::kIdent) {
+      if (Peek().kind == TokenKind::kSymbol && Peek().text == "(") {
+        Consume();
         return ParseCall(t.text);
       }
       return Named(t.text);
     }
-    if (t.kind == TokKind::kOp && t.text == "-") {
+    if (t.kind == TokenKind::kSymbol && t.text == "-") {
       Value v = ParsePrimary();
       if (v.is_literal) return Lit(-v.literal);
       const std::string out = Temp();
       ops_.push_back(exec::OpSpec{"neg", {v.name}, {out}});
       return Named(out);
     }
-    if (t.kind == TokKind::kLParen) {
+    if (t.kind == TokenKind::kSymbol && t.text == "(") {
       Value v = ParseExpr(0);
-      lex_.Expect(TokKind::kRParen, "')'");
+      ExpectSymbol(")", "')'");
       return v;
     }
-    throw std::invalid_argument("dsl: unexpected token");
+    Fail("dsl: unexpected token");
   }
 
   Value ParseCall(const std::string& fn) {
@@ -303,11 +192,11 @@ class Parser {
 
     if (fn == "select") {
       Value mask = ParseExpr(0);
-      lex_.Expect(TokKind::kComma, "','");
+      ExpectSymbol(",", "','");
       Value a = ParseExpr(0);
-      lex_.Expect(TokKind::kComma, "','");
+      ExpectSymbol(",", "','");
       Value b = ParseExpr(0);
-      lex_.Expect(TokKind::kRParen, "')'");
+      ExpectSymbol(")", "')'");
       ops_.push_back(exec::OpSpec{"select",
                                   {materialize(mask), materialize(a),
                                    materialize(b)},
@@ -316,28 +205,29 @@ class Parser {
     }
     if (fn == "filter") {
       Value data = ParseExpr(0);
-      lex_.Expect(TokKind::kComma, "','");
+      ExpectSymbol(",", "','");
       Value mask = ParseExpr(0);
-      lex_.Expect(TokKind::kRParen, "')'");
+      ExpectSymbol(")", "')'");
       ops_.push_back(
           exec::OpSpec{"filter", {materialize(data), materialize(mask)}, {out}});
       return Named(out);
     }
     if (fn == "dot") {
       Value a = ParseExpr(0);
-      lex_.Expect(TokKind::kComma, "','");
+      ExpectSymbol(",", "','");
       Value b = ParseExpr(0);
-      lex_.Expect(TokKind::kRParen, "')'");
+      ExpectSymbol(")", "')'");
       ops_.push_back(exec::OpSpec{"dot", {materialize(a), materialize(b)}, {out}});
       return Named(out);
     }
     if (fn == "cast") {
       Value a = ParseExpr(0);
-      lex_.Expect(TokKind::kComma, "','");
-      const Token dtype = lex_.Consume();
-      if (dtype.kind != TokKind::kIdent)
-        throw std::invalid_argument("dsl: cast expects a dtype name");
-      lex_.Expect(TokKind::kRParen, "')'");
+      ExpectSymbol(",", "','");
+      const Token dtype = Consume();
+      if (dtype.kind != TokenKind::kIdent) {
+        Fail("dsl: cast expects a dtype name");
+      }
+      ExpectSymbol(")", "')'");
       ops_.push_back(exec::OpSpec{"cast", {materialize(a)}, {out},
                                   {{"dtype", dtype.text}}});
       return Named(out);
@@ -355,11 +245,10 @@ class Parser {
         break;
       }
     }
-    if (!known)
-      throw std::invalid_argument("dsl: unknown function '" + fn + "'");
+    if (!known) Fail("dsl: unknown function '" + fn + "'");
 
     Value a = ParseExpr(0);
-    lex_.Expect(TokKind::kRParen, "')'");
+    ExpectSymbol(")", "')'");
     ops_.push_back(exec::OpSpec{fn, {materialize(a)}, {out}});
     return Named(out);
   }
@@ -367,15 +256,14 @@ class Parser {
   Value Lit(double v) { return Value{true, v, ""}; }
   Value Named(std::string name) { return Value{false, 0.0, std::move(name)}; }
 
-  Lexer lex_;
   std::vector<exec::OpSpec> ops_;
-  size_t tmp_ = 0;
+  std::size_t tmp_ = 0;
 };
 
 }  // namespace
 
 std::vector<exec::OpSpec> parse(const std::string& source) {
-  Parser parser(source);
+  ExprParser parser(source);
   return parser.Parse();
 }
 

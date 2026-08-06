@@ -35,7 +35,8 @@
 - **Monitoring** (`metric`) — unified pluggable Monitor + flame-graph
   profiling and null/anomaly probes.
 - **Cache** (`cache`) — abstract cache with local and remote implementations.
-- **Toolkit** (`toolkit`) — shared utilities (string, result, RAII, hash, time).
+- **Toolkit** (`toolkit`) — shared utilities (string, result, RAII, hash,
+  time) plus a reusable DSL parsing framework used by the column and dag DSLs.
 
 ## Project Structure (multi-module)
 

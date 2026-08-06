@@ -21,8 +21,9 @@ class OpGraph {
   OpGraph(const OpGraph&) = delete;
   OpGraph& operator=(const OpGraph&) = delete;
 
-  // Add an op (its Name() must be unique).
-  OpGraph& AddOp(std::shared_ptr<Op> op);
+  // Add an op under a node id. `id` defaults to the op's Name(). Multiple ops
+  // of the same type may be added under distinct ids.
+  OpGraph& AddOp(std::shared_ptr<Op> op, std::string id = {});
   // Attach a cross-cutting aspect applied around every op.
   OpGraph& AddAspect(std::shared_ptr<OpAspect> aspect);
   // `dep` must finish before `dependent` runs. Both must already be added.
@@ -40,14 +41,14 @@ class OpGraph {
   const std::vector<std::shared_ptr<OpAspect>>& aspects() const {
     return aspects_;
   }
-  std::size_t size() const { return order_.size(); }
+  std::size_t size() const { return ops_.size(); }
   bool compiled() const { return compiled_; }
 
  private:
   static const std::vector<Op*> kEmptyDeps;
 
   std::vector<std::shared_ptr<Op>> ops_;
-  std::unordered_map<std::string, Op*> by_name_;
+  std::unordered_map<std::string, Op*> by_id_;
   std::unordered_map<const Op*, std::vector<Op*>> deps_;
   std::vector<std::shared_ptr<OpAspect>> aspects_;
   std::vector<Op*> order_;

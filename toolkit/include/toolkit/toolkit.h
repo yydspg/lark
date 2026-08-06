@@ -6,6 +6,7 @@
 // Umbrella header for the toolkit module — the home for generic, reusable
 // utilities so modules don't scatter their own copies around.
 
+#include "toolkit/dsl.h"
 #include "toolkit/hash.h"
 #include "toolkit/result.h"
 #include "toolkit/scope.h"

@@ -7,5 +7,6 @@
 # ─────────────────────────────────────────────────────────────────────────────
 add_library(lark_toolkit
   src/toolkit.cpp
+  src/dsl.cpp
 )
 target_include_directories(lark_toolkit PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
