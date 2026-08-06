@@ -10,6 +10,11 @@
 // picks whichever monitor fits (dev logging, aggregate stats, fan-out to a
 // metrics exporter, or a no-op in production).
 //
+// Also provides built-in runtime observability on top of the same interface:
+//   * profile/ — flame-graph style CPU profiling (RAII scopes → call tree),
+//     the C++ equivalent of a Java flame-graph framework
+//   * probe/   — null-pointer / invariant / anomaly probes
+//
 //   auto mon = metric::MonitorFactory::Instance().Create("logging");
 //   mon->Emit(metric::Event{"cache", "cache.hit", "user:42"});
 
@@ -157,3 +162,9 @@ class MonitorFactory {
 };
 
 }  // namespace lark::metric
+
+// Built-in observability built on the same monitor abstraction:
+//   * flame-graph style CPU profiling (RAII scopes -> call tree)
+//   * null-pointer / invariant / anomaly probes
+#include "metric/profile.h"
+#include "metric/probe.h"

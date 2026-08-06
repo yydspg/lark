@@ -27,3 +27,8 @@ add_executable(test_toolkit test_toolkit.cpp)
 target_link_libraries(test_toolkit PRIVATE lark)
 
 add_test(NAME test_toolkit COMMAND test_toolkit)
+
+add_executable(test_metric test_metric.cpp)
+target_link_libraries(test_metric PRIVATE lark)
+
+add_test(NAME test_metric COMMAND test_metric)
