@@ -10,7 +10,7 @@ concurrently and a small pool never deadlocks on a wide graph.
 - **Node / Graph / GraphBuilder / NodeRegistry** — materialize and validate a
   DAG (`dag/dag.h` umbrella header; `LARK_NODE` auto-registration).
 - **Executor** — coroutine scheduling across three pools
-  (compute / IO / background), with fallback ("兜底") and batch-disable.
+  (compute / IO / background), with fallback (graceful degradation) and batch-disable.
 - **Per-node timing** — every `Node` records `elapsed()` and `started_at()`;
   attach a `StatsCollector` for a waterfall summary.
 - **Batch-disable** — `Execute(graph, ctx, {"a", "b"})` skips nodes for a run

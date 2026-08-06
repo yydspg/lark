@@ -1,8 +1,8 @@
-# LARK - C++20 DAG Framework
+# LARK - C++20 Framework
 
 <div align="center">
 
-**A high-performance C++20 DAG (Directed Acyclic Graph) framework with coroutine-based async execution**
+**A C++20 framework for high-performance async systems: coroutine primitives, DAG business orchestration, a columnar compute engine, RPC, monitoring and caching**
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![C++20](https://img.shields.io/badge/C%2B%2B-20-blue.svg)](https://isocpp.org/)
@@ -17,9 +17,25 @@
 - 📚 **[README](docs/README_EN.md)** - Full project documentation
 - 📘 **[Usage Guide](docs/USAGE_EN.md)** - Detailed usage examples and best practices
 
-### Project Structure (multi-module)
+## Features
 
-The framework is a CMake parent project composed of four independent subprojects:
+- **Coroutine primitives** (`coro`) — thread pool / async event / task that
+  power fully-asynchronous execution without blocking workers.
+- **DAG orchestration** (`dag`) — business node graphs with coroutine
+  scheduling, per-node timing, batch-disable and graceful degradation.
+- **Column engine** (`column`) — TensorFlow/ggml-inspired feed / compute /
+  fetch pipeline with DSL modules, multi-dtype tensors and Q8_0 quantization.
+- **RPC** (`rpc`) — transport-agnostic framework (in-process / gRPC / brpc).
+- **Monitoring** (`metric`) — unified pluggable Monitor + flame-graph
+  profiling and null/anomaly probes.
+- **Cache** (`cache`) — abstract cache with local and remote implementations.
+- **Toolkit** (`toolkit`) — shared utilities (string, result, RAII, hash, time).
+
+## Project Structure (multi-module)
+
+The framework is a CMake parent project composed of **seven** independent
+subprojects, each with its own `CMakeLists.txt` and `include/` + `src/`,
+dependencies declared via `target_link_libraries` (Maven/Gradle-style modules):
 
 ```
 lark/                       ← parent
@@ -28,18 +44,28 @@ lark/                       ← parent
 ├─ dag/     → liblark_dag    DAG business execution framework (depends on coro)
 ├─ column/  → liblark_column feed/compute/fetch column engine (depends on coro)
 ├─ rpc/     → liblark_rpc    generic RPC framework (gRPC/brpc/inproc wrappers)
-├─ metric/  → liblark_metric unified, pluggable monitoring abstraction
+├─ metric/  → liblark_metric unified monitoring + flame graph / probes
 ├─ cache/   → liblark_cache  abstract cache (local / remote) + factory
 ├─ toolkit/ → liblark_toolkit generic utilities (string, result, scope, hash, time)
 ├─ examples/
 └─ tests/
 ```
 
-Each subproject has its own `CMakeLists.txt` and `include/` + `src/`, with
-dependencies declared via `target_link_libraries` (like Maven/Gradle modules).
-Link the aggregate `lark` target or any individual library.
+Dependency graph: `metric → toolkit`; `coro → metric`; `dag → coro + metric`;
+`column → coro + metric`; `rpc → metric`; `cache → metric + rpc`. Link the
+aggregate `lark` target or any individual library.
 
-### Subproject READMEs
+## Build & test
+
+```sh
+cmake -S . -B build
+cmake --build build -j
+ctest --test-dir build            # all module test suites
+```
+
+Optional RPC backends: `-DLARK_WITH_GRPC=ON` / `-DLARK_WITH_BRPC=ON`.
+
+## Subproject READMEs
 
 | Subproject | Library | README |
 |------------|---------|--------|
@@ -51,7 +77,7 @@ Link the aggregate `lark` target or any individual library.
 | `cache/` | liblark_cache | [cache/README.md](cache/README.md) |
 | `toolkit/` | liblark_toolkit | [toolkit/README.md](toolkit/README.md) |
 
-### Other Documentation
+## Other Documentation
 
 - 📄 [Contributing Guide](CONTRIBUTING.md)
 - 📄 [Auto-Registration Guide](docs/AUTO_REGISTRATION.md)

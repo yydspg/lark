@@ -17,9 +17,9 @@ the **business layer** and the **execution layer**.
 
 ## Features
 
-- **feed / compute / fetch** — `Pipeline::feed(names, rows)` (行转列),
+- **feed / compute / fetch** — `Pipeline::feed(names, rows)` (row → column),
   `Pipeline::compute()` (graph orchestration on the coroutine pool),
-  `Pipeline::fetch(names)` (列转行).
+  `Pipeline::fetch(names)` (column → row).
 - **Anonymous/temp nodes** — the framework wires modules together with
   `@in` / `@out` / `@dep` boundary nodes and module-local temp columns.
 - **DSL** — declare sub-graphs in a tiny expression language:
