@@ -390,6 +390,61 @@ void TestPoolSelectionAndSchedule() {
   // necessarily the same one we started on, but always an IO worker).
 }
 
+// Verifies per-node timing monitoring (StatsCollector) and batch-disable.
+void TestNodeTimingAndBatchDisable() {
+  lark::NodeRegistry reg;
+  RegisterAll(reg);
+  lark::GraphBuilder builder(reg);
+
+  // source -> sink. Disabling source should skip it (kSkipped) but let the
+  // graph drain (sink still runs and observes no source data).
+  auto graph = builder.Build({{"source", {}, "src"}, {"sink", {"src"}, "snk"}});
+
+  lark::DefaultContext ctx;
+  auto stats = std::make_shared<lark::StatsCollector>();
+  lark::Executor executor(2, 2);
+  executor.SetMonitor(stats);
+
+  executor.Execute(*graph, ctx, {"src"});
+
+  CHECK(graph->Find("src")->status() == lark::NodeStatus::kSkipped);
+  CHECK(graph->Find("snk")->status() == lark::NodeStatus::kSuccess);
+  // source data was never produced, so sink's y is absent.
+  CHECK(!lark::Has<int>(ctx, "y"));
+
+  // Disabled node still has zeroed timing.
+  CHECK(graph->Find("src")->elapsed() == std::chrono::nanoseconds::zero());
+  CHECK(graph->Find("src")->started_at() == std::chrono::nanoseconds::zero());
+
+  // Per-node monitoring: every executed node has a recorded status; the
+  // skipped node is recorded as skipped.
+  CHECK(stats->stats().nodes.size() == 2);
+  bool saw_skipped = false, saw_success = false;
+  for (const auto& r : stats->stats().nodes) {
+    if (r.id == "src") {
+      CHECK(r.status == lark::NodeStatus::kSkipped);
+      saw_skipped = true;
+    } else {
+      CHECK(r.status == lark::NodeStatus::kSuccess);
+      CHECK(r.elapsed.count() >= 0);
+      CHECK(r.started_at.count() >= 0);
+      saw_success = true;
+    }
+  }
+  CHECK(saw_skipped && saw_success);
+
+  // Batch-disable multiple nodes at once.
+  auto wide = builder.Build({{"inc", {}, "a"}, {"inc", {}, "b"}, {"inc", {"a", "b"}, "c"}});
+  lark::DefaultContext ctx2;
+  lark::ProvideDomain<Bag>(ctx2);
+  lark::Executor executor2(2, 2);
+  executor2.Execute(*wide, ctx2, {"a", "b"});
+  CHECK(wide->Find("a")->status() == lark::NodeStatus::kSkipped);
+  CHECK(wide->Find("b")->status() == lark::NodeStatus::kSkipped);
+  CHECK(wide->Find("c")->status() == lark::NodeStatus::kSuccess);
+  CHECK(lark::Domain<Bag>(ctx2).counter.load() == 1);  // only c ran
+}
+
 }  // namespace
 
 int main() {
@@ -403,6 +458,7 @@ int main() {
   TestWideGraphStress();
   TestCustomContext();
   TestPoolSelectionAndSchedule();
+  TestNodeTimingAndBatchDisable();
 
   std::cout << (g_checks - g_failures) << "/" << g_checks << " checks passed\n";
   if (g_failures != 0) {

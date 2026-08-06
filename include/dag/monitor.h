@@ -24,6 +24,8 @@ class Monitor {
   virtual void OnNodeFailure(const Node& /*node*/, std::exception_ptr /*error*/,
                              std::chrono::nanoseconds /*elapsed*/) {}
   virtual void OnNodeFallback(const Node& /*node*/) {}
+  // Invoked for batch-disabled nodes (see Executor::Execute disabled_ids).
+  virtual void OnNodeSkipped(const Node& /*node*/) {}
 };
 
 }  // namespace lark

@@ -12,3 +12,8 @@ add_executable(test_engine test_engine.cpp)
 target_link_libraries(test_engine PRIVATE lark)
 
 add_test(NAME test_engine COMMAND test_engine)
+
+add_executable(test_rpc test_rpc.cpp)
+target_link_libraries(test_rpc PRIVATE lark)
+
+add_test(NAME test_rpc COMMAND test_rpc)

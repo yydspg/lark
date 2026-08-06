@@ -20,6 +20,8 @@ const char* ToString(NodeStatus status) noexcept {
       return "failed";
     case NodeStatus::kFallback:
       return "fallback";
+    case NodeStatus::kSkipped:
+      return "skipped";
   }
   return "unknown";
 }
@@ -62,6 +64,8 @@ NodeStatus Node::status() const noexcept {
 
 nanoseconds Node::elapsed() const noexcept { return elapsed_; }
 
+nanoseconds Node::started_at() const noexcept { return started_at_; }
+
 exception_ptr Node::error() const noexcept { return error_; }
 
 // ---------------------------------------------------------------------------
@@ -82,11 +86,14 @@ void Node::SetStatus(NodeStatus status) {
 
 void Node::SetElapsed(nanoseconds elapsed) { elapsed_ = elapsed; }
 
+void Node::SetStartedAt(nanoseconds started_at) { started_at_ = started_at; }
+
 void Node::SetError(exception_ptr error) { error_ = move(error); }
 
 void Node::ResetRunState() {
   status_.store(NodeStatus::kPending, std::memory_order_release);
   elapsed_ = nanoseconds::zero();
+  started_at_ = nanoseconds::zero();
   error_ = nullptr;
   done_event_.Reset();
 }

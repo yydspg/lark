@@ -4,7 +4,10 @@
 #include <chrono>
 #include <exception>
 #include <future>
+#include <string>
 #include <thread>
+#include <unordered_set>
+#include <vector>
 
 #include "dag/default_context.h"
 #include "dag/graph.h"
@@ -22,13 +25,19 @@ using std::lock_guard;
 using std::move;
 using std::shared_ptr;
 using std::size_t;
+using std::string;
 using std::thread;
+using std::unordered_set;
+using std::vector;
+
+using Clock = steady_clock;
 
 // Shared coordination state for a single Execute() call. Lives on the calling
 // thread's stack for the duration of the (blocking) call.
 struct Executor::RunState {
   atomic<size_t> remaining{0};
   std::promise<void> done;
+  steady_clock::time_point run_start{};
 };
 
 namespace {
@@ -74,6 +83,7 @@ coro::FireAndForget Executor::SpawnNode(Node& node, IContext& ctx,
   }
 
   const auto start = Clock::now();
+  node.SetStartedAt(start - state.run_start);
   node.SetStatus(NodeStatus::kRunning);
   if (monitor_) {
     monitor_->OnNodeStart(node);
@@ -125,7 +135,8 @@ coro::FireAndForget Executor::SpawnNode(Node& node, IContext& ctx,
   co_return;
 }
 
-void Executor::Execute(Graph& graph, IContext& ctx) {
+void Executor::Execute(Graph& graph, IContext& ctx,
+                       const vector<string>& disabled_ids) {
   graph.ResetRunState();
   if (graph.empty()) {
     return;
@@ -136,9 +147,25 @@ void Executor::Execute(Graph& graph, IContext& ctx) {
 
   RunState state;
   state.remaining.store(graph.size(), std::memory_order_relaxed);
+  state.run_start = Clock::now();
   future<void> done = state.done.get_future();
 
+  unordered_set<string> disabled(disabled_ids.begin(), disabled_ids.end());
+
   for (const auto& node : graph.nodes()) {
+    if (disabled.count(node->id()) > 0) {
+      // Batch-disable: skip execution, fire completion immediately so the
+      // graph drains without blocking. Counted toward completion below.
+      node->SetStatus(NodeStatus::kSkipped);
+      if (monitor_) {
+        monitor_->OnNodeSkipped(*node);
+      }
+      node->done_event().Set();
+      if (state.remaining.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+        state.done.set_value();
+      }
+      continue;
+    }
     SpawnNode(*node, ctx, state);
   }
 

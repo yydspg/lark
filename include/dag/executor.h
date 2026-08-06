@@ -55,7 +55,14 @@ class Executor {
 
   // Run the graph to completion (blocking). Safe to call repeatedly and from
   // different threads is not intended; call once per request per graph.
-  void Execute(Graph& graph, IContext& ctx);
+  //
+  // `disabled_ids` is the batch-disable set: the listed nodes are NOT executed
+  // for this run — each gets NodeStatus::kSkipped, its completion event fires
+  // immediately, and downstream nodes proceed as usual. Disabled nodes still
+  // count toward graph completion, so Execute() never blocks. (Consumers that
+  // depend on a disabled node's produced data are the caller's responsibility.)
+  void Execute(Graph& graph, IContext& ctx,
+               const std::vector<std::string>& disabled_ids = {});
 
   size_t compute_worker_count() const noexcept { return compute_pool_.size(); }
   size_t io_worker_count() const noexcept { return io_pool_.size(); }

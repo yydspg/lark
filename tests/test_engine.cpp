@@ -586,6 +586,55 @@ void TestRunAndReuse() {
   std::cout << "  done\n";
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Regression tests for column-computing edge cases
+// ─────────────────────────────────────────────────────────────────────────────
+void TestColumnEdgeCases() {
+  std::cout << "Test column edge cases...\n";
+
+  TensorStore store;
+
+  // empty reductions must not read out of bounds
+  auto run = [&](const exec::OpSpec& spec) -> const Tensor& {
+    auto op = exec::create_op(spec);
+    exec::OpContext octx(store);
+    op->compute(octx);
+    return store.get(spec.outputs.front());
+  };
+  store.set("empty", Tensor(DType::kInt64));
+  const Tensor& mx = run(exec::OpSpec{"max", {"empty"}, {"mx"}});
+  CHECK(mx.size() == 1 && mx.get<int64_t>(0) == 0);
+  const Tensor& mn = run(exec::OpSpec{"min", {"empty"}, {"mn"}});
+  CHECK(mn.get<int64_t>(0) == 0);
+  const Tensor& sm = run(exec::OpSpec{"sum", {"empty"}, {"sm"}});
+  CHECK(sm.get<double>(0) == 0.0);
+
+  // length-mismatched binary ops must throw, not read out of bounds
+  store.set("a3", Tensor::from_data(std::vector<int64_t>{1, 2, 3}));
+  store.set("b2", Tensor::from_data(std::vector<int64_t>{1, 2}));
+  CHECK_THROWS([&] { run(exec::OpSpec{"add", {"a3", "b2"}, {"bad"}}); });
+  CHECK_THROWS([&] { run(exec::OpSpec{"gt", {"a3", "b2"}, {"bad2"}}); });
+
+  // quantized zeros are zeroed (dequantize → all zero)
+  Tensor zq = Tensor::zeros(40, DType::kQ8_0);
+  Tensor zdq = zq.dequantize();
+  bool all_zero = true;
+  for (size_t i = 0; i < zdq.size(); ++i)
+    if (zdq.get<double>(i) != 0.0) all_zero = false;
+  CHECK(all_zero);
+
+  // a column written twice inside one module is rejected at compile time
+  auto dup = std::make_shared<biz::Module>("dup");
+  dup->input("x").output("o");
+  dup->op(biz::ops::add_scalar("o", "x", 1.0));
+  dup->op(biz::ops::add_scalar("o", "x", 2.0));
+  biz::Pipeline bad;
+  bad.add_module(dup);
+  CHECK_THROWS([&] { bad.compile(); });
+
+  std::cout << "  done\n";
+}
+
 }  // namespace
 
 int main() {
@@ -606,6 +655,7 @@ int main() {
     TestPipelineQuantization();
     TestCodeOrchestration();
     TestRunAndReuse();
+    TestColumnEdgeCases();
 
     std::cout << "\n" << (g_checks - g_failures) << "/" << g_checks
               << " checks passed\n";

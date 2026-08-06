@@ -42,9 +42,7 @@ Tensor::Tensor(std::initializer_list<double> il) : dtype_(DType::kFloat64) {
 
 Tensor Tensor::zeros(size_t n, DType dtype) {
   Tensor t(dtype, n);
-  if (dtype != DType::kQ8_0) {
-    t.data_.assign(dtype_bytes(n, dtype), 0);
-  }
+  t.data_.assign(dtype_bytes(n, dtype), 0);
   t.size_ = n;
   t.capacity_ = n;
   return t;

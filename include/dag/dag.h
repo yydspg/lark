@@ -18,3 +18,4 @@
 #include "dag/node.h"
 #include "dag/node_registry.h"
 #include "dag/schedule.h"
+#include "dag/stats.h"

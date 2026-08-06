@@ -6,3 +6,6 @@ target_link_libraries(column_example PRIVATE lark)
 
 add_executable(engine_example engine_example.cpp)
 target_link_libraries(engine_example PRIVATE lark)
+
+add_executable(rpc_example rpc_example.cpp)
+target_link_libraries(rpc_example PRIVATE lark)

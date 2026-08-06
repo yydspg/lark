@@ -35,7 +35,8 @@ namespace lark::column::biz {
 // Modules are joined into the global graph by the framework using anonymous
 // (temp) boundary nodes and inferred dependency edges, so a module never
 // needs to know how it is wired into the graph or whether the producers of
-// its inputs are ready.
+// its inputs are ready. Graph construction is delegated to PipelineCompiler
+// (biz/pipeline_compiler.h) so this class stays small.
 // ─────────────────────────────────────────────────────────────────────────────
 class Pipeline {
  public:
@@ -57,7 +58,7 @@ class Pipeline {
   // Compile registered modules into the global compute graph. Called
   // automatically before the first compute(). Throws std::invalid_argument /
   // std::runtime_error on wiring problems (duplicate module name, ambiguous
-  // column producer, module dependency cycle, ...).
+  // column producer, module dependency cycle, duplicate column write, ...).
   void compile();
 
   // ---- feed (行转列) -----------------------------------------------------
@@ -98,25 +99,6 @@ class Pipeline {
   std::vector<std::string> output_columns() const;
 
  private:
-  struct CompiledModule {
-    std::string name;
-    std::vector<std::string> output_names;
-    std::string tail;  // last op node id
-    std::vector<std::string> output_nodes;  // node ids producing declared outputs
-  };
-
-  // Compile-time wiring helpers.
-  void CollectColumnProducers();
-  std::vector<std::shared_ptr<Module>> TopoSortModules() const;
-  void CompileModule(const std::shared_ptr<Module>& module);
-  static std::string RemapTemp(const std::string& col,
-                               const std::string& module_name,
-                               std::unordered_map<std::string, std::string>& rename);
-  std::string ResolveInputDep(
-      const std::string& col,
-      const std::unordered_map<std::string, std::string>& local,
-      const std::string& module_name) const;
-
   // Monitoring helpers (always feed the internal collector; chain user monitor).
   void NotifyFeedStart();
   void NotifyFeedEnd();
@@ -137,11 +119,6 @@ class Pipeline {
   exec::ComputeGraph graph_;
   std::unique_ptr<coro::ThreadPool> compute_pool_;
   bool compiled_ = false;
-
-  // Compile-time state.
-  std::unordered_map<std::string, std::string> column_producer_;  // col -> node id
-  std::unordered_map<std::string, std::string> column_module_;    // col -> module
-  std::unordered_map<std::string, CompiledModule> module_info_;   // module -> info
 };
 
 }  // namespace lark::column::biz

@@ -14,6 +14,8 @@ option(DAG_BUILD_TESTS "Build DAG tests" ON)
 option(DAG_ENABLE_ASAN "Enable Address/Leak sanitizer" OFF)
 option(DAG_ENABLE_AVX2 "Enable AVX2 SIMD (x86_64 only)" OFF)
 option(DAG_ENABLE_AVX512 "Enable AVX-512 SIMD (x86_64 only)" OFF)
+option(LARK_WITH_GRPC "Enable the gRPC RPC backend adapter" OFF)
+option(LARK_WITH_BRPC "Enable the brpc RPC backend adapter" OFF)
 
 add_compile_options(-Wall -Wextra -Wpedantic)
 
@@ -31,6 +33,7 @@ add_library(lark
   src/graph.cpp
   src/graph_builder.cpp
   src/executor.cpp
+  src/stats.cpp
   src/coro/async_event.cpp
   src/coro/thread_pool.cpp
   # Column engine — Layer 2: compute kernels (SIMD-optimized)
@@ -57,12 +60,23 @@ add_library(lark
   src/column/context/execution_context.cpp
   src/column/exec/tensor_op.cpp
   src/column/exec/ops.cpp
+  src/column/exec/ops_binary.cpp
+  src/column/exec/ops_unary.cpp
+  src/column/exec/ops_reduce.cpp
+  src/column/exec/ops_compare.cpp
+  src/column/exec/ops_special.cpp
   src/column/exec/exec_node.cpp
   src/column/exec/compute_graph.cpp
   src/column/backend/backend.cpp
   src/column/biz/module.cpp
   src/column/biz/dsl.cpp
   src/column/biz/pipeline.cpp
+  src/column/biz/pipeline_compiler.cpp
+  # Generic RPC framework (OOP interfaces + backend factory)
+  src/rpc/backend.cpp
+  src/rpc/inproc_backend.cpp
+  src/rpc/grpc_backend.cpp
+  src/rpc/brpc_backend.cpp
 )
 target_include_directories(lark PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
 
@@ -82,6 +96,12 @@ set(COLUMN_COMPUTE_SRCS
   src/column/compute/reduce_tensor.cpp
   src/column/compute/compare_tensor.cpp
   src/column/compute/unary_tensor.cpp
+  # execution-layer op kernels
+  src/column/exec/ops_binary.cpp
+  src/column/exec/ops_unary.cpp
+  src/column/exec/ops_reduce.cpp
+  src/column/exec/ops_compare.cpp
+  src/column/exec/ops_special.cpp
 )
 
 # Apply -O3 to all compute kernels

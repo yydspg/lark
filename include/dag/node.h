@@ -30,6 +30,7 @@ enum class NodeStatus {
   kSuccess,   // completed normally
   kFailed,    // threw and had no (or failed) fallback
   kFallback,  // threw but fallback() produced a degraded result
+  kSkipped,   // explicitly disabled for this run (batch-disable)
 };
 
 // Human-readable name for a status (for logs / monitoring).
@@ -74,6 +75,9 @@ class Node {
   const vector<Node*>& dependencies() const noexcept;
   NodeStatus status() const noexcept;
   nanoseconds elapsed() const noexcept;
+  // Time offset (nanoseconds) from the start of the run to when the node began
+  // executing. Zero for skipped nodes. Enables per-node monitoring/waterfall.
+  nanoseconds started_at() const noexcept;
   exception_ptr error() const noexcept;
 
   // ---- framework internals (called by Graph/Executor) -------------------
@@ -83,6 +87,7 @@ class Node {
 
   void SetStatus(NodeStatus status);
   void SetElapsed(nanoseconds elapsed);
+  void SetStartedAt(nanoseconds started_at);
   void SetError(exception_ptr error);
 
   // Clear per-run state so the node can be executed again (graph reuse).
@@ -96,6 +101,7 @@ class Node {
   AsyncEvent done_event_;
   atomic<NodeStatus> status_;
   nanoseconds elapsed_;
+  nanoseconds started_at_;
   exception_ptr error_;
 };
 
