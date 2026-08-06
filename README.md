@@ -91,6 +91,7 @@ Optional RPC backends: `-DLARK_WITH_GRPC=ON` / `-DLARK_WITH_BRPC=ON`.
 - 📄 [Column Engine v4](docs/COLUMN_ENGINE_V4.md)
 - 📄 [RPC Framework & DAG Upgrades](docs/RPC_AND_DAG_UPGRADES.md)
 - 📄 [Metric & Cache](docs/METRIC_AND_CACHE.md)
+- 📚 [Module Wiki](wiki/README.md) - per-module usage / caveats / implementation / architecture
 - 📄 [License](LICENSE) (MIT)
 
 ---
