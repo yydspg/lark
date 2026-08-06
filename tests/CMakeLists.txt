@@ -42,3 +42,8 @@ add_executable(test_pools test_pools.cpp)
 target_link_libraries(test_pools PRIVATE lark)
 
 add_test(NAME test_pools COMMAND test_pools)
+
+add_executable(test_op test_op.cpp)
+target_link_libraries(test_op PRIVATE lark)
+
+add_test(NAME test_op COMMAND test_op)

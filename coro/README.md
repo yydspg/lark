@@ -21,21 +21,22 @@ machinery behind the DAG executor and the column engine's async compute graph.
 ## Usage
 
 ```cpp
-#include "coro/thread_pool.h"
-#include "coro/async_event.h"
+#include "coro/coro.h"
 
 lark::coro::ThreadPool pool(4);
 lark::coro::AsyncEvent done;
 
 // A coroutine that hops onto the pool via co_await pool.Schedule() — this
 // enqueues it onto a worker (ScheduleAwaiter uses ThreadPool::Enqueue).
-auto task = [&]() -> lark::coro::FireAndForget {
+// Use a plain function (NOT an immediately-invoked coroutine lambda) to avoid
+// a clang codegen bug with coroutine-lambda captures resumed on another thread.
+auto task = [&pool, &done]() -> lark::coro::FireAndForget {
   co_await pool.Schedule();   // hop onto a worker
   // ... do work ...
   done.Set();                 // wake every awaiter
   co_return;
 };
-task();                        // starts immediately; self-enqueues on the pool
+task();
 
 // ... some other coroutine: co_await done;
 ```

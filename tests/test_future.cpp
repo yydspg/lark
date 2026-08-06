@@ -203,6 +203,19 @@ void TestAggregates() {
 // ─────────────────────────────────────────────────────────────────────────────
 // co_await integration
 // ─────────────────────────────────────────────────────────────────────────────
+namespace {
+// Function-template consumer (avoids the clang coroutine-lambda codegen bug
+// seen with immediately-invoked coroutine lambdas resumed on another thread).
+lark::coro::FireAndForget AwaitFuture(lark::coro::ThreadPool& pool,
+                                      lark::coro::Future<int> fut, int& got,
+                                      lark::coro::AsyncEvent& done) {
+  co_await pool.Schedule();
+  got = co_await fut;  // Future<int> is awaitable
+  done.Set();
+  co_return;
+}
+}  // namespace
+
 void TestCoAwait() {
   std::cout << "Test co_await Future...\n";
   lark::coro::ThreadPool pool(4);
@@ -216,12 +229,7 @@ void TestCoAwait() {
 
   lark::coro::AsyncEvent done;
   int got = -1;
-  [&]() -> lark::coro::FireAndForget {
-    co_await pool.Schedule();
-    got = co_await fut;  // Future<int> is awaitable
-    done.Set();
-    co_return;
-  }();
+  AwaitFuture(pool, fut, got, done);
   WaitEvent(done);
   CHECK(got == 7);
 
