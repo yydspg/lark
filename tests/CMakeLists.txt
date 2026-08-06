@@ -22,3 +22,8 @@ add_executable(test_cache test_cache.cpp)
 target_link_libraries(test_cache PRIVATE lark)
 
 add_test(NAME test_cache COMMAND test_cache)
+
+add_executable(test_toolkit test_toolkit.cpp)
+target_link_libraries(test_toolkit PRIVATE lark)
+
+add_test(NAME test_toolkit COMMAND test_toolkit)

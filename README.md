@@ -30,6 +30,7 @@ lark/                       ← parent
 ├─ rpc/     → liblark_rpc    generic RPC framework (gRPC/brpc/inproc wrappers)
 ├─ metric/  → liblark_metric unified, pluggable monitoring abstraction
 ├─ cache/   → liblark_cache  abstract cache (local / remote) + factory
+├─ toolkit/ → liblark_toolkit generic utilities (string, result, scope, hash, time)
 ├─ examples/
 └─ tests/
 ```
@@ -48,6 +49,7 @@ Link the aggregate `lark` target or any individual library.
 | `rpc/` | liblark_rpc | [rpc/README.md](rpc/README.md) |
 | `metric/` | liblark_metric | [metric/README.md](metric/README.md) |
 | `cache/` | liblark_cache | [cache/README.md](cache/README.md) |
+| `toolkit/` | liblark_toolkit | [toolkit/README.md](toolkit/README.md) |
 
 ### Other Documentation
 
