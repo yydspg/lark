@@ -43,6 +43,11 @@ endif()
 
 find_package(Threads REQUIRED)
 
+# Export compile_commands.json so IDE language servers (clangd / VSCode C++)
+# get correct per-file flags (includes, -std=c++20). Editors should point at
+# this file (or the root compile_commands.json symlink).
+set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
+
 # ---- subprojects (children) ----
 add_subdirectory(coro)
 add_subdirectory(dag)
