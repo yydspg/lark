@@ -19,10 +19,16 @@
 
 ## Features
 
-- **Coroutine primitives** (`coro`) — thread pool / async event / task that
-  power fully-asynchronous execution without blocking workers.
-- **DAG orchestration** (`dag`) — business node graphs with coroutine
-  scheduling, per-node timing, batch-disable and graceful degradation.
+- **Coroutine primitives + orchestration** (`coro`) — thread pool / async event
+  / task primitives, CompletableFuture-style `Future<T>` orchestration
+  (Then / ThenAsync / AllOf / AnyOf / co_await), lock-free `Context` +
+  `Pipeline` step orchestration, differentiated pools
+  (compute / io / lowload / dag / daemon), and compute auto-tuning with CPU
+  pinning.
+- **DAG orchestration** (`dag`) — classic Node layer (coroutine scheduling,
+  per-node timing, batch-disable, graceful degradation) plus a business-oriented
+  **Op layer**: subclass `Op` with only business logic, cross-cutting
+  `OpAspect` (aspect) for condition-based auto-skip, all ops async on the dag pool.
 - **Column engine** (`column`) — TensorFlow/ggml-inspired feed / compute /
   fetch pipeline with DSL modules, multi-dtype tensors and Q8_0 quantization.
 - **RPC** (`rpc`) — transport-agnostic framework (in-process / gRPC / brpc).
@@ -51,9 +57,9 @@ lark/                       ← parent
 └─ tests/
 ```
 
-Dependency graph: `metric → toolkit`; `coro → metric`; `dag → coro + metric`;
-`column → coro + metric`; `rpc → metric`; `cache → metric + rpc`. Link the
-aggregate `lark` target or any individual library.
+Dependency graph: `metric → toolkit`; `coro → metric + toolkit`; `dag → coro +
+metric + toolkit`; `column → coro + metric`; `rpc → metric`; `cache → metric +
+rpc`. Link the aggregate `lark` target or any individual library.
 
 ## Build & test
 

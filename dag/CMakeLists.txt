@@ -15,4 +15,4 @@ add_library(lark_dag
   src/op_executor.cpp
 )
 target_include_directories(lark_dag PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_link_libraries(lark_dag PUBLIC lark_coro lark_metric)
+target_link_libraries(lark_dag PUBLIC lark_coro lark_metric lark_toolkit)
