@@ -8,6 +8,7 @@
 // Pipeline).
 
 #include "coro/async_event.h"
+#include "coro/batch.h"
 #include "coro/context.h"
 #include "coro/fire_and_forget.h"
 #include "coro/future.h"

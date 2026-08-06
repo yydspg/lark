@@ -6,6 +6,7 @@
 # ─────────────────────────────────────────────────────────────────────────────
 add_library(lark_coro
   src/async_event.cpp
+  src/batch.cpp
   src/thread_pool.cpp
   src/pipeline.cpp
   src/pools.cpp

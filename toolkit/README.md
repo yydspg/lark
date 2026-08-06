@@ -60,6 +60,10 @@ int total = 0;
 Add new cross-cutting helpers **here** (namespace `lark::toolkit`) instead of
 duplicating them inside dag / column / rpc / coro / metric / cache.
 
+Coroutine-dependent utilities (which need a pool / `Future`) live in **`coro`**
+(e.g. `coro::batch`) — `toolkit` stays zero-dependency and `coro` already links
+it, so a toolkit→coro dependency would be a cycle.
+
 ## Dependencies
 
 None.
