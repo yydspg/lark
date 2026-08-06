@@ -1,6 +1,23 @@
 cmake_minimum_required(VERSION 3.20)
 project(lark_framework LANGUAGES CXX)
 
+# ─────────────────────────────────────────────────────────────────────────────
+# LARK multi-module build (Maven/Gradle-style parent project).
+#
+# The framework is split into independent subprojects (each with its own
+# CMakeLists.txt + include/ + src/), linked by a parent aggregate target:
+#
+#   coro    → lark_coro    standalone coroutine primitives (ThreadPool,
+#                          AsyncEvent, Task, FireAndForget)
+#   dag     → lark_dag     DAG business execution framework (depends on coro)
+#   column  → lark_column  feed/compute/fetch column engine (depends on coro)
+#   rpc     → lark_rpc     generic RPC framework (standalone)
+#   lark    ────────────── parent aggregate: links all four subprojects
+#
+# Callers can either link the individual libraries (fine-grained) or the single
+# `lark` target (aggregate).
+# ─────────────────────────────────────────────────────────────────────────────
+
 set(CMAKE_CXX_STANDARD 20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
@@ -24,109 +41,23 @@ if(DAG_ENABLE_ASAN)
   add_link_options(-fsanitize=address,undefined)
 endif()
 
-# ---- core library ----
-add_library(lark
-  # DAG framework
-  src/default_context.cpp
-  src/node.cpp
-  src/node_registry.cpp
-  src/graph.cpp
-  src/graph_builder.cpp
-  src/executor.cpp
-  src/stats.cpp
-  src/coro/async_event.cpp
-  src/coro/thread_pool.cpp
-  # Column engine — Layer 2: compute kernels (SIMD-optimized)
-  src/column/tensor.cpp
-  src/column/tensor_table.cpp
-  src/column/compute/add_tensor.cpp
-  src/column/compute/sub_tensor.cpp
-  src/column/compute/mul_tensor.cpp
-  src/column/compute/div_tensor.cpp
-  src/column/compute/scalar_tensor.cpp
-  src/column/compute/reduce_tensor.cpp
-  src/column/compute/compare_tensor.cpp
-  src/column/compute/unary_tensor.cpp
-  # Column engine — Layer 1: business nodes
-  src/column/node/transform_node.cpp
-  src/column/node/filter_node.cpp
-  src/column/node/aggregate_node.cpp
-  # Column engine — Graph pipeline
-  src/column/graph.cpp
-  # Column engine v4 — feed/compute/fetch engine
-  src/column/tensor_store.cpp
-  src/column/monitor.cpp
-  src/column/feed_fetch.cpp
-  src/column/context/execution_context.cpp
-  src/column/exec/tensor_op.cpp
-  src/column/exec/ops.cpp
-  src/column/exec/ops_binary.cpp
-  src/column/exec/ops_unary.cpp
-  src/column/exec/ops_reduce.cpp
-  src/column/exec/ops_compare.cpp
-  src/column/exec/ops_special.cpp
-  src/column/exec/exec_node.cpp
-  src/column/exec/compute_graph.cpp
-  src/column/backend/backend.cpp
-  src/column/biz/module.cpp
-  src/column/biz/dsl.cpp
-  src/column/biz/pipeline.cpp
-  src/column/biz/pipeline_compiler.cpp
-  # Generic RPC framework (OOP interfaces + backend factory)
-  src/rpc/backend.cpp
-  src/rpc/inproc_backend.cpp
-  src/rpc/grpc_backend.cpp
-  src/rpc/brpc_backend.cpp
-)
-target_include_directories(lark PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/include)
-
 find_package(Threads REQUIRED)
-target_link_libraries(lark PUBLIC Threads::Threads)
 
-# SIMD optimization for column engine compute kernels
-# Platform detection:
-#   ARM64 (Apple Silicon / Linux): NEON is always available — no extra flags
-#   x86_64: SSE2 is default; enable AVX2/AVX-512 via CMake options
-set(COLUMN_COMPUTE_SRCS
-  src/column/compute/add_tensor.cpp
-  src/column/compute/sub_tensor.cpp
-  src/column/compute/mul_tensor.cpp
-  src/column/compute/div_tensor.cpp
-  src/column/compute/scalar_tensor.cpp
-  src/column/compute/reduce_tensor.cpp
-  src/column/compute/compare_tensor.cpp
-  src/column/compute/unary_tensor.cpp
-  # execution-layer op kernels
-  src/column/exec/ops_binary.cpp
-  src/column/exec/ops_unary.cpp
-  src/column/exec/ops_reduce.cpp
-  src/column/exec/ops_compare.cpp
-  src/column/exec/ops_special.cpp
-)
+# ---- subprojects (children) ----
+add_subdirectory(coro)
+add_subdirectory(dag)
+add_subdirectory(column)
+add_subdirectory(rpc)
 
-# Apply -O3 to all compute kernels
-set_source_files_properties(${COLUMN_COMPUTE_SRCS} PROPERTIES COMPILE_OPTIONS "-O3")
-
-# x86_64 SIMD flags
-if(CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|AMD64|amd64")
-  if(DAG_ENABLE_AVX512)
-    message(STATUS "Column engine SIMD: AVX-512 (x86_64)")
-    set_source_files_properties(${COLUMN_COMPUTE_SRCS} PROPERTIES COMPILE_OPTIONS "-O3;-mavx512f")
-  elseif(DAG_ENABLE_AVX2)
-    message(STATUS "Column engine SIMD: AVX2+FMA (x86_64)")
-    set_source_files_properties(${COLUMN_COMPUTE_SRCS} PROPERTIES COMPILE_OPTIONS "-O3;-mavx2;-mfma")
-  else()
-    message(STATUS "Column engine SIMD: SSE2 (x86_64 default)")
-    # SSE2 is default on x86_64, no extra flags needed
-  endif()
-elseif(CMAKE_SYSTEM_PROCESSOR MATCHES "aarch64|arm64|ARM64")
-  message(STATUS "Column engine SIMD: NEON (ARM64, always available)")
-  # NEON is always available on ARM64, no extra flags needed
-endif()
+# ---- parent aggregate target ----
+add_library(lark INTERFACE)
+target_link_libraries(lark INTERFACE lark_coro lark_dag lark_column lark_rpc)
 
 # GCC needs an explicit flag for coroutines; clang enables them with -std=c++20.
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-  target_compile_options(lark PUBLIC -fcoroutines)
+  foreach(_mod lark_coro lark_dag lark_column lark_rpc)
+    target_compile_options(${_mod} PUBLIC -fcoroutines)
+  endforeach()
 endif()
 
 if(DAG_BUILD_EXAMPLES)

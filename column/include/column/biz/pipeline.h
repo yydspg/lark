@@ -15,7 +15,7 @@
 #include "column/exec/compute_graph.h"
 #include "column/feed_fetch.h"
 #include "column/monitor.h"
-#include "dag/coro/thread_pool.h"
+#include "coro/thread_pool.h"
 
 namespace lark::column::biz {
 

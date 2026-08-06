@@ -10,8 +10,8 @@
 
 #include "column/context/execution_context.h"
 #include "column/exec/exec_node.h"
-#include "dag/coro/fire_and_forget.h"
-#include "dag/coro/thread_pool.h"
+#include "coro/fire_and_forget.h"
+#include "coro/thread_pool.h"
 
 namespace lark::column::exec {
 

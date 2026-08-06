@@ -28,6 +28,26 @@
 - 📘 **[English Usage Guide](docs/USAGE_EN.md)** - Detailed usage examples and best practices
 - 📘 **[中文使用指南](docs/USAGE_ZH.md)** - 详细使用示例和最佳实践
 
+### Project Structure / 项目结构（多子项目 / multi-module）
+
+The framework is a CMake parent project composed of four independent subprojects
+（母项目由四个独立子项目组成）:
+
+```
+lark/                       ← parent (母项目)
+├─ CMakeLists.txt           ← project() + add_subdirectory(...) + aggregate `lark`
+├─ coro/    → liblark_coro   standalone coroutine primitives (协程)
+├─ dag/     → liblark_dag    DAG business execution framework (依赖 coro)
+├─ column/  → liblark_column feed/compute/fetch column engine (依赖 coro)
+├─ rpc/     → liblark_rpc    generic RPC framework (gRPC/brpc/inproc 包装)
+├─ examples/
+└─ tests/
+```
+
+Each subproject has its own `CMakeLists.txt` and `include/` + `src/`, with
+dependencies declared via `target_link_libraries` (like Maven/Gradle modules).
+Link the aggregate `lark` target or any individual library.
+
 ### Other Documentation / 其他文档
 
 - 📄 [Contributing Guide / 贡献指南](CONTRIBUTING.md) (Bilingual / 双语)

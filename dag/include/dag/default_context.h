@@ -4,7 +4,7 @@
 #include <unordered_map>
 
 #include "dag/context.h"
-#include "dag/coro/thread_pool.h"
+#include "coro/thread_pool.h"
 
 namespace lark {
 

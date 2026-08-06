@@ -30,8 +30,8 @@ Business code works with rows and modules; the engine computes over columns.
 
 | Layer | Concern | Files |
 |-------|---------|-------|
-| **Business** (`biz/`) | WHAT to compute: `Module`, `SubGraph`, DSL, `Pipeline`. A module only knows its inputs, its sub-graph, and its outputs — it never knows how it is joined into the global graph or whether its inputs are ready. | `include/column/biz/*` |
-| **Execution** (`exec/`) | HOW to compute: `TensorOp` (kernel), `ComputeNode` (binds one op), `ComputeGraph` (DAG + coroutine scheduler). Performance-focused. | `include/column/exec/*` |
+| **Business** (`biz/`) | WHAT to compute: `Module`, `SubGraph`, DSL, `Pipeline`. A module only knows its inputs, its sub-graph, and its outputs — it never knows how it is joined into the global graph or whether its inputs are ready. | `column/include/column/biz/*` |
+| **Execution** (`exec/`) | HOW to compute: `TensorOp` (kernel), `ComputeNode` (binds one op), `ComputeGraph` (DAG + coroutine scheduler). Performance-focused. | `column/include/column/exec/*` |
 
 ### Features
 
@@ -109,8 +109,8 @@ std::cout << pipeline.stats().summary();      // 监控: 模块耗时 / feed耗�
 
 | 层 | 关注点 | 文件 |
 |----|--------|------|
-| **业务层**（`biz/`） | 计算什么：`Module`、`SubGraph`、DSL、`Pipeline`。module 只关心输入、自己的 subGraph、产出；无需感知如何加入全局图、无需感知依赖是否就绪。 | `include/column/biz/*` |
-| **执行层**（`exec/`） | 怎么算：`TensorOp`（内核）、`ComputeNode`（绑定一个 op）、`ComputeGraph`（DAG + 协程调度），性能优先。 | `include/column/exec/*` |
+| **业务层**（`biz/`） | 计算什么：`Module`、`SubGraph`、DSL、`Pipeline`。module 只关心输入、自己的 subGraph、产出；无需感知如何加入全局图、无需感知依赖是否就绪。 | `column/include/column/biz/*` |
+| **执行层**（`exec/`） | 怎么算：`TensorOp`（内核）、`ComputeNode`（绑定一个 op）、`ComputeGraph`（DAG + 协程调度），性能优先。 | `column/include/column/exec/*` |
 
 ### 特性
 

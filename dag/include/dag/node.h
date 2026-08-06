@@ -10,8 +10,8 @@
 #include <vector>
 
 #include "dag/i_context.h"
-#include "dag/coro/async_event.h"
-#include "dag/coro/task.h"
+#include "coro/async_event.h"
+#include "coro/task.h"
 
 namespace lark {
 
