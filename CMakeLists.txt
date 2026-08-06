@@ -12,7 +12,9 @@ project(lark_framework LANGUAGES CXX)
 #   dag     → lark_dag     DAG business execution framework (depends on coro)
 #   column  → lark_column  feed/compute/fetch column engine (depends on coro)
 #   rpc     → lark_rpc     generic RPC framework (standalone)
-#   lark    ────────────── parent aggregate: links all four subprojects
+#   monitor → lark_monitor unified pluggable monitoring (zero deps)
+#   cache   → lark_cache   abstract cache (local / remote), depends on monitor+rpc
+#   lark    ────────────── parent aggregate: links all subprojects
 #
 # Callers can either link the individual libraries (fine-grained) or the single
 # `lark` target (aggregate).
@@ -53,14 +55,16 @@ add_subdirectory(coro)
 add_subdirectory(dag)
 add_subdirectory(column)
 add_subdirectory(rpc)
+add_subdirectory(monitor)
+add_subdirectory(cache)
 
 # ---- parent aggregate target ----
 add_library(lark INTERFACE)
-target_link_libraries(lark INTERFACE lark_coro lark_dag lark_column lark_rpc)
+target_link_libraries(lark INTERFACE lark_coro lark_dag lark_column lark_rpc lark_monitor lark_cache)
 
 # GCC needs an explicit flag for coroutines; clang enables them with -std=c++20.
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
-  foreach(_mod lark_coro lark_dag lark_column lark_rpc)
+  foreach(_mod lark_coro lark_dag lark_column lark_rpc lark_monitor lark_cache)
     target_compile_options(${_mod} PUBLIC -fcoroutines)
   endforeach()
 endif()

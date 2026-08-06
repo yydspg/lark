@@ -9,3 +9,6 @@ target_link_libraries(engine_example PRIVATE lark)
 
 add_executable(rpc_example rpc_example.cpp)
 target_link_libraries(rpc_example PRIVATE lark)
+
+add_executable(cache_example cache_example.cpp)
+target_link_libraries(cache_example PRIVATE lark)

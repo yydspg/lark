@@ -5,19 +5,19 @@
 
 #include <chrono>
 #include <cstddef>
-#include <exception>
 #include <mutex>
 #include <string>
 #include <vector>
+
+#include "monitor/monitor.h"
 
 namespace lark::column::monitor {
 
 using Clock = std::chrono::steady_clock;
 using std::chrono::nanoseconds;
-using std::exception_ptr;
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Timing records
+// Timing records (the column-engine domain stats model).
 // ─────────────────────────────────────────────────────────────────────────────
 
 struct OpTiming {
@@ -42,47 +42,6 @@ struct CpuPressure {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// ExecutionMonitor: the generic observability interface of the engine.
-//
-// The framework (Pipeline / ComputeGraph executor / ExecutionContext) invokes
-// these callbacks around every stage. Business code plugs in its own
-// implementation to export metrics / tracing / logging. Callbacks may run
-// concurrently from multiple worker threads, so implementations must be
-// thread-safe.
-// ─────────────────────────────────────────────────────────────────────────────
-class ExecutionMonitor {
- public:
-  virtual ~ExecutionMonitor() = default;
-
-  // ---- phases (feed → compute → fetch) -------------------------------
-  virtual void OnFeedStart() {}
-  virtual void OnFeedEnd(nanoseconds /*elapsed*/) {}
-  virtual void OnComputeStart() {}
-  virtual void OnComputeEnd(nanoseconds /*elapsed*/) {}
-  virtual void OnFetchStart() {}
-  virtual void OnFetchEnd(nanoseconds /*elapsed*/) {}
-
-  // ---- per-node execution ---------------------------------------------
-  virtual void OnNodeStart(const std::string& /*node_id*/,
-                           const std::string& /*op_type*/) {}
-  virtual void OnNodeEnd(const std::string& /*node_id*/,
-                         const std::string& /*op_type*/,
-                         nanoseconds /*elapsed*/) {}
-  virtual void OnNodeError(const std::string& /*node_id*/,
-                           const std::string& /*op_type*/,
-                           const exception_ptr& /*error*/) {}
-
-  // ---- per-module aggregate (reported once per run, after compute) ----
-  virtual void OnModuleEnd(const std::string& /*module*/,
-                           nanoseconds /*elapsed*/, std::size_t /*node_count*/) {}
-
-  // ---- CPU pressure distribution ---------------------------------------
-  virtual void OnCpuPressure(const std::string& /*pool*/, double /*utilization*/,
-                             nanoseconds /*busy*/, nanoseconds /*wall*/,
-                             std::size_t /*workers*/) {}
-};
-
-// ─────────────────────────────────────────────────────────────────────────────
 // RunStats: aggregate snapshot of a single run (feed + compute + fetch).
 // ─────────────────────────────────────────────────────────────────────────────
 struct RunStats {
@@ -97,35 +56,34 @@ struct RunStats {
 
   void reset();
 
-  // Human-readable report (uses << operators; no external deps).
+  // Human-readable report.
   std::string summary() const;
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// StatsCollector: a thread-safe default monitor that accumulates a RunStats.
-// This is the "通用监控接口" out-of-the-box implementation.
+// StatsCollector: the column-engine monitoring implementation.
+//
+// It is an implementation of the unified lark::monitor::Monitor abstraction.
+// The framework (Pipeline / ComputeGraph / ExecutionContext) emits
+// lark::monitor::Event records; this collector turns the "column.*" events
+// back into the domain RunStats model. Business code may attach any other
+// monitor implementation instead (e.g. a logging monitor in dev).
 // ─────────────────────────────────────────────────────────────────────────────
-class StatsCollector : public ExecutionMonitor {
+class StatsCollector : public ::lark::monitor::Monitor {
  public:
   StatsCollector() = default;
+
+  void Emit(const ::lark::monitor::Event& event) override;
 
   RunStats& stats() noexcept { return stats_; }
   const RunStats& stats() const noexcept { return stats_; }
 
-  void OnFeedEnd(nanoseconds elapsed) override;
-  void OnComputeEnd(nanoseconds elapsed) override;
-  void OnFetchEnd(nanoseconds elapsed) override;
-  void OnNodeEnd(const std::string& node_id, const std::string& op_type,
-                 nanoseconds elapsed) override;
-  void OnNodeError(const std::string& node_id, const std::string& op_type,
-                   const exception_ptr&) override;
-  void OnModuleEnd(const std::string& module, nanoseconds elapsed,
-                   std::size_t node_count) override;
-  void OnCpuPressure(const std::string& pool, double utilization,
-                     nanoseconds busy, nanoseconds wall,
-                     std::size_t workers) override;
-
  private:
+  void HandlePhase(const ::lark::monitor::Event& event);
+  void HandleNode(const ::lark::monitor::Event& event);
+  void HandleModule(const ::lark::monitor::Event& event);
+  void HandleCpuPressure(const ::lark::monitor::Event& event);
+
   // Derive the module name from a node id ("<module>/...") — falls back to the
   // full id when there is no separator.
   static std::string ModuleOf(const std::string& node_id);

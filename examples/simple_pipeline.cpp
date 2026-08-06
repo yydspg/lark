@@ -111,29 +111,21 @@ class RankNode : public lark::Node {
 LARK_NODE("rank", RankNode);  // Auto-registered!
 
 // A monitor that logs each node's outcome (thread-safe).
-class ConsoleMonitor : public lark::Monitor {
+class ConsoleMonitor : public lark::monitor::Monitor {
  public:
-  void OnNodeSuccess(const lark::Node& node,
-                     std::chrono::nanoseconds elapsed) override {
+  void Emit(const lark::monitor::Event& e) override {
+    if (e.source != "dag") return;
     std::lock_guard<std::mutex> lock(mutex_);
-    std::cout << "  [success] " << node.id() << " ("
-              << std::chrono::duration_cast<std::chrono::milliseconds>(elapsed)
-                     .count()
-              << " ms)\n";
-  }
-
-  void OnNodeFailure(const lark::Node& node, std::exception_ptr /*error*/,
-                     std::chrono::nanoseconds elapsed) override {
-    std::lock_guard<std::mutex> lock(mutex_);
-    std::cout << "  [FAILED] " << node.id() << " ("
-              << std::chrono::duration_cast<std::chrono::milliseconds>(elapsed)
-                     .count()
-              << " ms)\n";
-  }
-
-  void OnNodeFallback(const lark::Node& node) override {
-    std::lock_guard<std::mutex> lock(mutex_);
-    std::cout << "  [FALLBACK] " << node.id() << "\n";
+    const std::string* elapsed = e.Get("elapsed_ns");
+    std::cout << "  [" << e.action << "] " << e.subject;
+    if (elapsed) {
+      std::cout << " ("
+                << std::chrono::duration_cast<std::chrono::milliseconds>(
+                       std::chrono::nanoseconds(std::stoll(*elapsed)))
+                       .count()
+                << " ms)";
+    }
+    std::cout << "\n";
   }
 
  private:

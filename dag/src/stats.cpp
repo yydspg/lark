@@ -39,28 +39,43 @@ std::string ExecutionStats::summary() const {
   return os.str();
 }
 
-void StatsCollector::Record(const Node& node) {
+void StatsCollector::HandleNodeEvent(const monitor::Event& event) {
+  // Terminal node events carry the status / elapsed / started_at attributes;
+  // "node.start" is informational only and is skipped here.
+  const std::string* status_str = event.Get("status");
+  if (status_str == nullptr) return;
+
+  const std::string status = *status_str;
+  NodeStatus ns = NodeStatus::kSuccess;
+  if (status == "running") return;
+  if (status == "failed")
+    ns = NodeStatus::kFailed;
+  else if (status == "fallback")
+    ns = NodeStatus::kFallback;
+  else if (status == "skipped")
+    ns = NodeStatus::kSkipped;
+
+  NodeRunStats rec;
+  rec.id = event.subject;
+  const std::string* type = event.Get("type");
+  rec.type = type ? *type : "";
+  rec.status = ns;
+  const std::string* elapsed = event.Get("elapsed_ns");
+  rec.elapsed = elapsed ? nanoseconds(std::stoll(*elapsed)) : nanoseconds::zero();
+  const std::string* started = event.Get("started_ns");
+  rec.started_at =
+      started ? nanoseconds(std::stoll(*started)) : nanoseconds::zero();
+
   std::lock_guard<std::mutex> lock(mutex_);
-  stats_.nodes.push_back(
-      NodeRunStats{node.id(), node.type(), node.status(), node.elapsed(),
-                   node.started_at()});
+  stats_.nodes.push_back(std::move(rec));
 }
 
-void StatsCollector::OnNodeStart(const Node&) {
-  // Recorded on completion events below (start is captured via started_at()).
+void StatsCollector::Emit(const monitor::Event& event) {
+  if (event.source != "dag") return;
+  if (event.action.rfind("node.", 0) == 0) {
+    HandleNodeEvent(event);
+  }
 }
-
-void StatsCollector::OnNodeSuccess(const Node& node, nanoseconds) {
-  Record(node);
-}
-
-void StatsCollector::OnNodeFailure(const Node& node, exception_ptr, nanoseconds) {
-  Record(node);
-}
-
-void StatsCollector::OnNodeFallback(const Node& node) { Record(node); }
-
-void StatsCollector::OnNodeSkipped(const Node& node) { Record(node); }
 
 void StatsCollector::Reset() {
   std::lock_guard<std::mutex> lock(mutex_);

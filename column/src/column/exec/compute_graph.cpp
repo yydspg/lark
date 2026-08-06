@@ -121,6 +121,18 @@ void ReserveOutputs(const ComputeGraph& graph, TensorStore& store) {
     }
   }
 }
+
+// Emit a "column" node event into the configured monitor (if any).
+void EmitNodeEvent(context::ExecutionContext& ctx, const char* action,
+                   const std::string& node_id, const std::string& op_type,
+                   nanoseconds elapsed, bool ok) {
+  if (!ctx.has_monitor()) return;
+  ::lark::monitor::Event e{"column", action, node_id};
+  e.attr("op", op_type).attr_ns("elapsed_ns", elapsed.count());
+  e.duration = elapsed;
+  e.ok = ok;
+  ctx.monitor()->Emit(e);
+}
 }  // namespace
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -138,8 +150,8 @@ void ComputeGraph::Execute(context::ExecutionContext& ctx) {
 
   for (ComputeNode* node : topo_) {
     const auto start = Clock::now();
-    if (ctx.has_monitor())
-      ctx.monitor()->OnNodeStart(node->id(), node->op().op_type());
+    EmitNodeEvent(ctx, "node.start", node->id(), node->op().op_type(),
+                  nanoseconds::zero(), true);
     {
       std::lock_guard<std::mutex> lock(state.mu);
       auto& acc = state.modules[node->module()];
@@ -169,12 +181,8 @@ void ComputeGraph::Execute(context::ExecutionContext& ctx) {
       auto& acc = state.modules[node->module()];
       acc.end = std::max(acc.end, end);
     }
-    if (ctx.has_monitor()) {
-      if (ok)
-        ctx.monitor()->OnNodeEnd(node->id(), node->op().op_type(), elapsed);
-      else
-        ctx.monitor()->OnNodeError(node->id(), node->op().op_type(), err);
-    }
+    EmitNodeEvent(ctx, ok ? "node.end" : "node.error", node->id(),
+                  node->op().op_type(), elapsed, ok);
     node->SetStatus(ok ? NodeStatus::kSuccess : NodeStatus::kFailed);
     if (!ok) node->SetError(err);
     node->done_event().Set();
@@ -201,8 +209,8 @@ coro::FireAndForget ComputeGraph::SpawnNode(ComputeNode* node,
   }
 
   const auto start = Clock::now();
-  if (ctx.has_monitor())
-    ctx.monitor()->OnNodeStart(node->id(), node->op().op_type());
+  EmitNodeEvent(ctx, "node.start", node->id(), node->op().op_type(),
+                nanoseconds::zero(), true);
   {
     std::lock_guard<std::mutex> lock(state.mu);
     auto& acc = state.modules[node->module()];
@@ -232,12 +240,8 @@ coro::FireAndForget ComputeGraph::SpawnNode(ComputeNode* node,
     auto& acc = state.modules[node->module()];
     acc.end = std::max(acc.end, end);
   }
-  if (ctx.has_monitor()) {
-    if (ok)
-      ctx.monitor()->OnNodeEnd(node->id(), node->op().op_type(), elapsed);
-    else
-      ctx.monitor()->OnNodeError(node->id(), node->op().op_type(), err);
-  }
+  EmitNodeEvent(ctx, ok ? "node.end" : "node.error", node->id(),
+                node->op().op_type(), elapsed, ok);
   node->SetStatus(ok ? NodeStatus::kSuccess : NodeStatus::kFailed);
   if (!ok) node->SetError(err);
   node->done_event().Set();
@@ -276,7 +280,10 @@ void ComputeGraph::ReportRunSummary(context::ExecutionContext& ctx,
                                     std::size_t workers) {
   if (!ctx.has_monitor()) return;
   for (const auto& [module, acc] : state.modules) {
-    ctx.monitor()->OnModuleEnd(module, acc.end - acc.start, acc.count);
+    ::lark::monitor::Event e{"column", "module.end", module};
+    e.duration = acc.end - acc.start;
+    e.attr("node_count", std::to_string(acc.count));
+    ctx.monitor()->Emit(e);
   }
   double util = 0.0;
   if (wall.count() > 0 && workers > 0) {
@@ -284,7 +291,13 @@ void ComputeGraph::ReportRunSummary(context::ExecutionContext& ctx,
            static_cast<double>(wall.count() * workers);
     util = std::min(util, 1.0);
   }
-  ctx.monitor()->OnCpuPressure("compute", util, state.busy, wall, workers);
+  ::lark::monitor::Event p{"column", "cpu.pressure", "compute"};
+  p.attr("pool", "compute")
+      .attr("utilization", std::to_string(util))
+      .attr_ns("busy_ns", state.busy.count())
+      .attr_ns("wall_ns", wall.count())
+      .attr("workers", std::to_string(workers));
+  ctx.monitor()->Emit(p);
 }
 
 }  // namespace lark::column::exec

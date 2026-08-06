@@ -10,6 +10,7 @@
 #include "column/monitor.h"
 #include "column/tensor_store.h"
 #include "column/tensor_table.h"
+#include "monitor/monitor.h"
 
 namespace lark::column::context {
 
@@ -87,8 +88,10 @@ class ExecutionContext {
   void clear_store() { store_.clear(); }
 
   // ---- monitoring -------------------------------------------------------
-  void set_monitor(std::shared_ptr<monitor::ExecutionMonitor> monitor);
-  monitor::ExecutionMonitor* monitor() const noexcept { return monitor_.get(); }
+  // Any unified monitor implementation (lark::monitor::Monitor); the framework
+  // emits "column.*" events into it. Default: none (no-op).
+  void set_monitor(std::shared_ptr<::lark::monitor::Monitor> monitor);
+  ::lark::monitor::Monitor* monitor() const noexcept { return monitor_.get(); }
   bool has_monitor() const noexcept { return monitor_ != nullptr; }
 
  private:
@@ -100,7 +103,7 @@ class ExecutionContext {
   TensorTable feed_;
   TensorTable fetch_;
   TensorStore store_;
-  std::shared_ptr<monitor::ExecutionMonitor> monitor_;
+  std::shared_ptr<::lark::monitor::Monitor> monitor_;
 };
 
 }  // namespace lark::column::context

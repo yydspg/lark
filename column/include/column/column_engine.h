@@ -21,7 +21,7 @@
 //                       performance-focused kernels, bind tensor ops to nodes.
 //   Backend (backend/) — factory for compute backends (CPU implemented).
 //   Context (context/) — per-run ExecutionContext with feed/compute/fetch phases.
-//   Monitoring (monitor.h) — generic ExecutionMonitor + StatsCollector.
+//   Monitoring (monitor.h) — unified lark::monitor::Monitor + column StatsCollector.
 
 // Data containers
 #include "column/tensor.h"

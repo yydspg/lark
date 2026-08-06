@@ -44,13 +44,32 @@ RpcStatus InProcChannel::Call(const std::string& service,
                               const RpcMessage& request, RpcMessage& response,
                               const RpcCallOptions& options) {
   (void)options;  // in-process dispatch is synchronous; timeout is a no-op
+  const auto start = ::lark::monitor::Clock::now();
   RpcService* svc = InProcRegistry::Instance().Find(service);
   if (svc == nullptr) {
-    return RpcStatus::Unavailable("inproc: no service '" + service +
-                                  "' registered (endpoint " +
-                                  endpoint_.uri() + ")");
+    return Finish(options, service, method, start,
+                  RpcStatus::Unavailable("inproc: no service '" + service +
+                                         "' registered (endpoint " +
+                                         endpoint_.uri() + ")"));
   }
-  return svc->Dispatch(method, request, response);
+  return Finish(options, service, method, start,
+                svc->Dispatch(method, request, response));
+}
+
+// Emit an "rpc.call" monitoring event (when a monitor is attached).
+RpcStatus InProcChannel::Finish(const RpcCallOptions& options,
+                                const std::string& service,
+                                const std::string& method,
+                                ::lark::monitor::Clock::time_point start,
+                                RpcStatus status) {
+  if (options.monitor) {
+    ::lark::monitor::Event e{"rpc", "rpc.call", method};
+    e.attr("service", service).attr("endpoint", endpoint_.uri());
+    e.duration = ::lark::monitor::Clock::now() - start;
+    e.ok = status.ok();
+    options.monitor->Emit(e);
+  }
+  return status;
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

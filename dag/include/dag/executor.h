@@ -6,6 +6,7 @@
 #include "coro/fire_and_forget.h"
 #include "coro/thread_pool.h"
 #include "dag/i_context.h"
+#include "monitor/monitor.h"
 
 namespace lark {
 
@@ -13,8 +14,13 @@ using std::shared_ptr;
 using std::size_t;
 
 class Graph;
-class Monitor;
 class Node;
+
+// Monitoring lives in the unified monitor module: attach any
+// lark::monitor::Monitor implementation (e.g. StatsCollector) and the executor
+// emits per-node events ("node.start", "node.success", "node.failure",
+// "node.fallback", "node.skipped").
+using Monitor = monitor::Monitor;
 
 // Drives a Graph to completion with fully asynchronous, coroutine-based
 // scheduling on worker pools.
@@ -50,8 +56,9 @@ class Executor {
   Executor(const Executor&) = delete;
   Executor& operator=(const Executor&) = delete;
 
-  // Optional observability hook. Not owned beyond the shared_ptr lifetime.
-  void SetMonitor(shared_ptr<Monitor> monitor);
+  // Optional observability hook (any unified monitor implementation). Not
+  // owned beyond the shared_ptr lifetime.
+  void SetMonitor(shared_ptr<monitor::Monitor> monitor);
 
   // Run the graph to completion (blocking). Safe to call repeatedly and from
   // different threads is not intended; call once per request per graph.

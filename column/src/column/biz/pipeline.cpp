@@ -12,76 +12,6 @@ namespace lark::column::biz {
 
 using namespace lark::column::context;
 
-namespace {
-
-using std::exception_ptr;
-
-// Forwards every monitoring event to the internal StatsCollector AND to the
-// optional user-supplied monitor, so both receive the full event stream.
-class ChainingMonitor : public monitor::ExecutionMonitor {
- public:
-  explicit ChainingMonitor(monitor::ExecutionMonitor* internal)
-      : internal_(internal) {}
-
-  void SetUser(monitor::ExecutionMonitor* user) { user_ = user; }
-
-  void OnFeedStart() override {
-    internal_->OnFeedStart();
-    if (user_) user_->OnFeedStart();
-  }
-  void OnFeedEnd(nanoseconds elapsed) override {
-    internal_->OnFeedEnd(elapsed);
-    if (user_) user_->OnFeedEnd(elapsed);
-  }
-  void OnComputeStart() override {
-    internal_->OnComputeStart();
-    if (user_) user_->OnComputeStart();
-  }
-  void OnComputeEnd(nanoseconds elapsed) override {
-    internal_->OnComputeEnd(elapsed);
-    if (user_) user_->OnComputeEnd(elapsed);
-  }
-  void OnFetchStart() override {
-    internal_->OnFetchStart();
-    if (user_) user_->OnFetchStart();
-  }
-  void OnFetchEnd(nanoseconds elapsed) override {
-    internal_->OnFetchEnd(elapsed);
-    if (user_) user_->OnFetchEnd(elapsed);
-  }
-  void OnNodeStart(const std::string& id, const std::string& type) override {
-    internal_->OnNodeStart(id, type);
-    if (user_) user_->OnNodeStart(id, type);
-  }
-  void OnNodeEnd(const std::string& id, const std::string& type,
-                 nanoseconds elapsed) override {
-    internal_->OnNodeEnd(id, type, elapsed);
-    if (user_) user_->OnNodeEnd(id, type, elapsed);
-  }
-  void OnNodeError(const std::string& id, const std::string& type,
-                   const exception_ptr& error) override {
-    internal_->OnNodeError(id, type, error);
-    if (user_) user_->OnNodeError(id, type, error);
-  }
-  void OnModuleEnd(const std::string& module, nanoseconds elapsed,
-                   std::size_t node_count) override {
-    internal_->OnModuleEnd(module, elapsed, node_count);
-    if (user_) user_->OnModuleEnd(module, elapsed, node_count);
-  }
-  void OnCpuPressure(const std::string& pool, double utilization,
-                     nanoseconds busy, nanoseconds wall,
-                     std::size_t workers) override {
-    internal_->OnCpuPressure(pool, utilization, busy, wall, workers);
-    if (user_) user_->OnCpuPressure(pool, utilization, busy, wall, workers);
-  }
-
- private:
-  monitor::ExecutionMonitor* internal_;
-  monitor::ExecutionMonitor* user_ = nullptr;
-};
-
-}  // namespace
-
 // ─────────────────────────────────────────────────────────────────────────────
 // Construction / configuration
 // ─────────────────────────────────────────────────────────────────────────────
@@ -90,7 +20,9 @@ Pipeline::Pipeline(std::unique_ptr<backend::Backend> backend, size_t compute_wor
     : backend_(std::move(backend)),
       compute_workers_(compute_workers == 0 ? std::thread::hardware_concurrency()
                                             : compute_workers) {
-  chaining_ = std::make_shared<ChainingMonitor>(&stats_);
+  stats_ = std::make_shared<monitor::StatsCollector>();
+  chaining_ = std::make_shared<::lark::monitor::CompositeMonitor>();
+  chaining_->Add(stats_);
   ctx_.set_monitor(chaining_);
 }
 
@@ -113,9 +45,14 @@ Pipeline& Pipeline::set_backend(std::shared_ptr<backend::Backend> backend) {
   return *this;
 }
 
-Pipeline& Pipeline::set_monitor(std::shared_ptr<monitor::ExecutionMonitor> monitor) {
+Pipeline& Pipeline::set_monitor(std::shared_ptr<::lark::monitor::Monitor> monitor) {
   monitor_ = std::move(monitor);
-  static_cast<ChainingMonitor*>(chaining_.get())->SetUser(monitor_.get());
+  // Rebuild the fan-out: internal StatsCollector + the user-supplied monitor.
+  auto chaining = std::make_shared<::lark::monitor::CompositeMonitor>();
+  chaining->Add(stats_);
+  if (monitor_) chaining->Add(monitor_);
+  chaining_ = chaining;
+  ctx_.set_monitor(chaining_);
   return *this;
 }
 
@@ -126,20 +63,32 @@ Pipeline& Pipeline::set_compute_workers(size_t n) {
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Monitoring helpers
+// Monitoring helpers (emit "column" phase events into the fan-out monitor)
 // ─────────────────────────────────────────────────────────────────────────────
 
-void Pipeline::NotifyFeedStart() { chaining_->OnFeedStart(); }
+void Pipeline::NotifyFeedStart() {
+  chaining_->Emit(::lark::monitor::Event{"column", "feed.start", "feed"});
+}
 void Pipeline::NotifyFeedEnd() {
-  chaining_->OnFeedEnd(ctx_.phase_elapsed(RunPhase::kFeed));
+  ::lark::monitor::Event e{"column", "feed.end", "feed"};
+  e.duration = ctx_.phase_elapsed(RunPhase::kFeed);
+  chaining_->Emit(e);
 }
-void Pipeline::NotifyComputeStart() { chaining_->OnComputeStart(); }
+void Pipeline::NotifyComputeStart() {
+  chaining_->Emit(::lark::monitor::Event{"column", "compute.start", "compute"});
+}
 void Pipeline::NotifyComputeEnd() {
-  chaining_->OnComputeEnd(ctx_.phase_elapsed(RunPhase::kCompute));
+  ::lark::monitor::Event e{"column", "compute.end", "compute"};
+  e.duration = ctx_.phase_elapsed(RunPhase::kCompute);
+  chaining_->Emit(e);
 }
-void Pipeline::NotifyFetchStart() { chaining_->OnFetchStart(); }
+void Pipeline::NotifyFetchStart() {
+  chaining_->Emit(::lark::monitor::Event{"column", "fetch.start", "fetch"});
+}
 void Pipeline::NotifyFetchEnd() {
-  chaining_->OnFetchEnd(ctx_.phase_elapsed(RunPhase::kFetch));
+  ::lark::monitor::Event e{"column", "fetch.end", "fetch"};
+  e.duration = ctx_.phase_elapsed(RunPhase::kFetch);
+  chaining_->Emit(e);
 }
 
 // ─────────────────────────────────────────────────────────────────────────────

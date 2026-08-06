@@ -11,8 +11,8 @@
 
 #include "dag/default_context.h"
 #include "dag/graph.h"
-#include "dag/monitor.h"
 #include "dag/node.h"
+#include "monitor/monitor.h"
 
 namespace lark {
 
@@ -32,6 +32,40 @@ using std::vector;
 
 using Clock = steady_clock;
 
+namespace {
+
+size_t Resolve(size_t requested, size_t fallback) {
+  return requested != 0 ? requested : fallback;
+}
+
+// Best-effort textual description of an exception for monitoring events.
+std::string DescribeError(const exception_ptr& error) {
+  if (!error) return "";
+  try {
+    std::rethrow_exception(error);
+  } catch (const std::exception& e) {
+    return e.what();
+  } catch (...) {
+    return "unknown error";
+  }
+}
+
+// Build a node event with the common per-node attributes.
+monitor::Event NodeEvent(const Node& node, const char* action,
+                         const char* status, nanoseconds elapsed,
+                         nanoseconds started, const std::string& error = {}) {
+  monitor::Event e{"dag", action, node.id()};
+  e.attr("type", node.type()).attr("status", status);
+  if (elapsed.count() >= 0) e.attr_ns("elapsed_ns", elapsed.count());
+  e.attr_ns("started_ns", started.count());
+  if (!error.empty()) e.attr("error", error);
+  e.duration = elapsed;
+  e.ok = error.empty();
+  return e;
+}
+
+}  // namespace
+
 // Shared coordination state for a single Execute() call. Lives on the calling
 // thread's stack for the duration of the (blocking) call.
 struct Executor::RunState {
@@ -39,12 +73,6 @@ struct Executor::RunState {
   std::promise<void> done;
   steady_clock::time_point run_start{};
 };
-
-namespace {
-size_t Resolve(size_t requested, size_t fallback) {
-  return requested != 0 ? requested : fallback;
-}
-}  // namespace
 
 Executor::Executor(size_t compute_threads, size_t io_threads,
                    size_t background_threads)
@@ -54,7 +82,7 @@ Executor::Executor(size_t compute_threads, size_t io_threads,
 
 Executor::~Executor() = default;
 
-void Executor::SetMonitor(shared_ptr<Monitor> monitor) {
+void Executor::SetMonitor(shared_ptr<monitor::Monitor> monitor) {
   monitor_ = move(monitor);
 }
 
@@ -86,14 +114,17 @@ coro::FireAndForget Executor::SpawnNode(Node& node, IContext& ctx,
   node.SetStartedAt(start - state.run_start);
   node.SetStatus(NodeStatus::kRunning);
   if (monitor_) {
-    monitor_->OnNodeStart(node);
+    monitor_->Emit(NodeEvent(node, "node.start", "running", nanoseconds{-1},
+                             node.started_at()));
   }
 
   exception_ptr error;
+  std::string error_msg;
   try {
     co_await node.Run(ctx);
   } catch (...) {
     error = std::current_exception();
+    error_msg = DescribeError(error);
   }
 
   const auto elapsed = Clock::now() - start;
@@ -102,7 +133,8 @@ coro::FireAndForget Executor::SpawnNode(Node& node, IContext& ctx,
   if (!error) {
     node.SetStatus(NodeStatus::kSuccess);
     if (monitor_) {
-      monitor_->OnNodeSuccess(node, elapsed);
+      monitor_->Emit(NodeEvent(node, "node.success", "success", elapsed,
+                               node.started_at()));
     }
   } else {
     node.SetError(error);
@@ -115,12 +147,14 @@ coro::FireAndForget Executor::SpawnNode(Node& node, IContext& ctx,
     if (recovered) {
       node.SetStatus(NodeStatus::kFallback);
       if (monitor_) {
-        monitor_->OnNodeFallback(node);
+        monitor_->Emit(NodeEvent(node, "node.fallback", "fallback", elapsed,
+                                 node.started_at()));
       }
     } else {
       node.SetStatus(NodeStatus::kFailed);
       if (monitor_) {
-        monitor_->OnNodeFailure(node, error, elapsed);
+        monitor_->Emit(NodeEvent(node, "node.failure", "failed", elapsed,
+                                 node.started_at(), error_msg));
       }
     }
   }
@@ -158,7 +192,9 @@ void Executor::Execute(Graph& graph, IContext& ctx,
       // graph drains without blocking. Counted toward completion below.
       node->SetStatus(NodeStatus::kSkipped);
       if (monitor_) {
-        monitor_->OnNodeSkipped(*node);
+        monitor_->Emit(NodeEvent(*node, "node.skipped", "skipped",
+                                 nanoseconds::zero(),
+                                 node->started_at()));
       }
       node->done_event().Set();
       if (state.remaining.fetch_sub(1, std::memory_order_acq_rel) == 1) {

@@ -6,7 +6,6 @@
 #include <algorithm>
 #include <cmath>
 #include <iomanip>
-#include <mutex>
 #include <sstream>
 
 namespace lark::column::monitor {
@@ -97,52 +96,63 @@ std::string StatsCollector::ModuleOf(const std::string& node_id) {
   return slash == std::string::npos ? node_id : node_id.substr(0, slash);
 }
 
-void StatsCollector::OnFeedEnd(nanoseconds elapsed) {
+// ---- event handling --------------------------------------------------------
+
+void StatsCollector::HandlePhase(const ::lark::monitor::Event& event) {
   std::lock_guard<std::mutex> lock(mutex_);
-  stats_.feed_elapsed = elapsed;
+  if (event.action == "feed.end")
+    stats_.feed_elapsed = event.duration;
+  else if (event.action == "compute.end")
+    stats_.compute_elapsed = event.duration;
+  else if (event.action == "fetch.end")
+    stats_.fetch_elapsed = event.duration;
 }
 
-void StatsCollector::OnComputeEnd(nanoseconds elapsed) {
+void StatsCollector::HandleNode(const ::lark::monitor::Event& event) {
   std::lock_guard<std::mutex> lock(mutex_);
-  stats_.compute_elapsed = elapsed;
-}
-
-void StatsCollector::OnFetchEnd(nanoseconds elapsed) {
-  std::lock_guard<std::mutex> lock(mutex_);
-  stats_.fetch_elapsed = elapsed;
-}
-
-void StatsCollector::OnNodeEnd(const std::string& node_id,
-                               const std::string& op_type,
-                               nanoseconds elapsed) {
-  std::lock_guard<std::mutex> lock(mutex_);
+  const std::string* op = event.Get("op");
   stats_.ops.push_back(
-      OpTiming{node_id, op_type, ModuleOf(node_id), elapsed});
+      OpTiming{event.subject, op ? *op : "", ModuleOf(event.subject),
+               event.duration});
 }
 
-void StatsCollector::OnNodeError(const std::string& node_id,
-                                 const std::string& op_type,
-                                 const exception_ptr&) {
+void StatsCollector::HandleModule(const ::lark::monitor::Event& event) {
   std::lock_guard<std::mutex> lock(mutex_);
-  // Record failed ops with a zero-duration entry so they are visible in
-  // the op timeline; the exception itself is surfaced by the pipeline.
-  stats_.ops.push_back(
-      OpTiming{node_id, op_type, ModuleOf(node_id), nanoseconds::zero()});
+  const std::string* count = event.Get("node_count");
+  stats_.modules.push_back(
+      ModuleTiming{event.subject, event.duration,
+                   count ? static_cast<std::size_t>(std::stoull(*count)) : 0});
 }
 
-void StatsCollector::OnModuleEnd(const std::string& module,
-                                 nanoseconds elapsed,
-                                 std::size_t node_count) {
+void StatsCollector::HandleCpuPressure(const ::lark::monitor::Event& event) {
   std::lock_guard<std::mutex> lock(mutex_);
-  stats_.modules.push_back(ModuleTiming{module, elapsed, node_count});
+  const std::string* pool = event.Get("pool");
+  const std::string* busy = event.Get("busy_ns");
+  const std::string* wall = event.Get("wall_ns");
+  const std::string* workers = event.Get("workers");
+  const std::string* util = event.Get("utilization");
+  CpuPressure p;
+  p.pool = pool ? *pool : "compute";
+  p.busy = busy ? nanoseconds(std::stoll(*busy)) : nanoseconds::zero();
+  p.wall = wall ? nanoseconds(std::stoll(*wall)) : nanoseconds::zero();
+  p.workers = workers ? static_cast<std::size_t>(std::stoull(*workers)) : 0;
+  p.utilization = util ? std::stod(*util) : 0.0;
+  stats_.compute_workers = p.workers;
+  stats_.pressure.push_back(std::move(p));
 }
 
-void StatsCollector::OnCpuPressure(const std::string& pool, double utilization,
-                                   nanoseconds busy, nanoseconds wall,
-                                   std::size_t workers) {
-  std::lock_guard<std::mutex> lock(mutex_);
-  stats_.compute_workers = workers;
-  stats_.pressure.push_back(CpuPressure{pool, utilization, busy, wall, workers});
+void StatsCollector::Emit(const ::lark::monitor::Event& event) {
+  if (event.source != "column") return;
+  if (event.action == "feed.end" || event.action == "compute.end" ||
+      event.action == "fetch.end") {
+    HandlePhase(event);
+  } else if (event.action == "node.end" || event.action == "node.error") {
+    HandleNode(event);
+  } else if (event.action == "module.end") {
+    HandleModule(event);
+  } else if (event.action == "cpu.pressure") {
+    HandleCpuPressure(event);
+  }
 }
 
 }  // namespace lark::column::monitor

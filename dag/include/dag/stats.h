@@ -5,8 +5,8 @@
 #include <string>
 #include <vector>
 
-#include "dag/monitor.h"
 #include "dag/node.h"
+#include "monitor/monitor.h"
 
 namespace lark {
 
@@ -31,33 +31,31 @@ struct ExecutionStats {
 };
 
 // ─────────────────────────────────────────────────────────────────────────────
-// StatsCollector: the built-in per-node monitoring/timing implementation.
+// StatsCollector: the built-in per-node monitoring/timing implementation of
+// the unified monitor abstraction.
 //
-// Business code can attach it to the Executor to get per-node elapsed times
-// out of the box (no custom Monitor subclass needed):
+// Attach it to the Executor to get per-node elapsed times out of the box:
 //
 //   lark::StatsCollector stats;
 //   executor.SetMonitor(std::make_shared<lark::StatsCollector>(stats));
 //   executor.Execute(graph, ctx);
 //   std::cout << stats.stats().summary();
 //
+// The executor emits lark::monitor::Event records; this collector turns the
+// dag "node.*" events back into the domain ExecutionStats model.
 // Thread-safe: callbacks fire from multiple workers.
 // ─────────────────────────────────────────────────────────────────────────────
-class StatsCollector : public Monitor {
+class StatsCollector : public monitor::Monitor {
  public:
   StatsCollector() = default;
 
-  void OnNodeStart(const Node&) override;
-  void OnNodeSuccess(const Node& node, nanoseconds) override;
-  void OnNodeFailure(const Node& node, exception_ptr, nanoseconds) override;
-  void OnNodeFallback(const Node& node) override;
-  void OnNodeSkipped(const Node& node) override;
+  void Emit(const monitor::Event& event) override;
 
   const ExecutionStats& stats() const noexcept { return stats_; }
   void Reset();
 
  private:
-  void Record(const Node& node);
+  void HandleNodeEvent(const monitor::Event& event);
 
   mutable std::mutex mutex_;
   ExecutionStats stats_;
