@@ -22,6 +22,12 @@ the **business layer** and the **execution layer**.
   `Pipeline::fetch(names)` (column → row).
 - **Anonymous/temp nodes** — the framework wires modules together with
   `@in` / `@out` / `@dep` boundary nodes and module-local temp columns.
+- **Total-graph orchestration with placeholders** — modules compile in
+  registration order; when a module references a column (or a `depends_on`
+  tail) of a module compiled later, an anonymous **placeholder node** stands in
+  (placeholder) so the graph stays buildable, and is **replaced** (final replacement) by the
+  real producer once it compiles. Cross-module cycles are still caught at
+  `ComputeGraph::Finalize`.
 - **DSL** — declare sub-graphs in a tiny expression language (parsed with the
   shared `toolkit::dsl` framework, reused by the dag arrow DSL):
   ```

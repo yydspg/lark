@@ -40,6 +40,9 @@ class ComputeNode {
   const std::vector<ComputeNode*>& dependencies() const noexcept {
     return deps_;
   }
+  // Rewire all edges pointing at `from` to `to` (used when a placeholder node
+  // is replaced by the real producer); de-duplicates.
+  void ReplaceDependency(ComputeNode* from, ComputeNode* to);
 
   // ---- run state --------------------------------------------------------
   NodeStatus status() const noexcept {

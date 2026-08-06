@@ -3,6 +3,7 @@
 
 #include "column/exec/exec_node.h"
 
+#include <algorithm>
 #include <utility>
 
 namespace lark::column::exec {
@@ -15,6 +16,14 @@ ComputeNode::ComputeNode(std::string id, std::string module,
 
 void ComputeNode::SetStatus(NodeStatus s) {
   status_.store(s, std::memory_order_release);
+}
+
+void ComputeNode::ReplaceDependency(ComputeNode* from, ComputeNode* to) {
+  for (auto& dep : deps_) {
+    if (dep == from) dep = to;
+  }
+  std::sort(deps_.begin(), deps_.end());
+  deps_.erase(std::unique(deps_.begin(), deps_.end()), deps_.end());
 }
 
 void ComputeNode::SetElapsed(std::chrono::nanoseconds e) { elapsed_ = e; }

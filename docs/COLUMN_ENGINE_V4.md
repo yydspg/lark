@@ -22,6 +22,9 @@ Business code works with rows and modules; the engine computes over columns.
   the mini-DSL). The framework flattens them into one global `ComputeGraph`,
   wiring modules together with **anonymous/temp nodes** and dependency edges, then
   runs it on the coroutine compute pool (`coro::ThreadPool` + `coro::AsyncEvent`).
+  Modules compile in registration order; forward references to a later module's
+  column (or `depends_on` tail) get an anonymous **placeholder node** (placeholder) that
+  is **replaced** (final replacement) by the real producer once it compiles.
 - **fetch (column → row)** — `Pipeline::fetch(names)` materializes result columns back
   into business rows.
 

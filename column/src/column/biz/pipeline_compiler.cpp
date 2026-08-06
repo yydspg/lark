@@ -3,7 +3,6 @@
 
 #include "column/biz/pipeline_compiler.h"
 
-#include <queue>
 #include <stdexcept>
 
 namespace lark::column::biz {
@@ -18,16 +17,39 @@ void PipelineCompiler::Compile(
   column_producer_.clear();
   column_module_.clear();
   module_info_.clear();
+  column_placeholder_.clear();
+  module_tail_placeholder_.clear();
 
+  // Pass 1: every column any module produces -> producing module.
   CollectColumnProducers(modules);
-  const auto order = TopoSortModules(modules, module_names);
-  for (const auto& module : order) {
+
+  // Validate explicit depends_on targets exist.
+  for (const auto& module : modules) {
+    for (const auto& dep : module->dependencies()) {
+      if (module_names.count(dep) == 0) {
+        throw std::invalid_argument("PipelineCompiler: module '" +
+                                    module->name() + "' depends_on unknown module '" +
+                                    dep + "'");
+      }
+    }
+  }
+
+  // Pass 2: compile in REGISTRATION order. Forward references (a column or a
+  // depends_on tail of a not-yet-compiled module) get anonymous placeholder
+  // nodes; they are replaced once the real producer compiles.
+  for (const auto& module : modules) {
     CompileModule(module);
+  }
+
+  if (graph_.HasPlaceholders()) {
+    throw std::runtime_error(
+        "PipelineCompiler: unresolved forward references (a referenced "
+        "column/tail was never produced)");
   }
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Pass A: detect ambiguous column producers.
+// Pass 1: detect ambiguous column producers.
 // ─────────────────────────────────────────────────────────────────────────────
 void PipelineCompiler::CollectColumnProducers(
     const std::vector<std::shared_ptr<Module>>& modules) {
@@ -50,72 +72,47 @@ void PipelineCompiler::CollectColumnProducers(
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Pass B: topological order of modules by explicit depends_on + data flow.
+// Forward-reference helpers (placeholder nodes, 占位 -> 替换)
 // ─────────────────────────────────────────────────────────────────────────────
-std::vector<std::shared_ptr<Module>> PipelineCompiler::TopoSortModules(
-    const std::vector<std::shared_ptr<Module>>& modules,
-    const std::unordered_set<std::string>& module_names) const {
-  std::unordered_map<std::string, std::unordered_set<std::string>> deps;
-  for (const auto& module : modules) {
-    deps[module->name()];
-    for (const auto& dep : module->dependencies())
-      deps[module->name()].insert(dep);
 
-    auto consumes = [&](const std::string& col) {
-      auto it = column_module_.find(col);
-      if (it == column_module_.end()) return;  // feed port
-      const std::string& prod = it->second;
-      if (prod != module->name()) deps[module->name()].insert(prod);
-    };
-    for (const auto& port : module->inputs()) consumes(port);
-    for (const auto& spec : module->subgraph().ops()) {
-      for (const auto& in : spec.inputs) {
-        if (in.empty() || in.front() != '@') consumes(in);
-      }
-    }
-  }
+std::string PipelineCompiler::EnsureColumnPlaceholder(const std::string& col) {
+  auto it = column_placeholder_.find(col);
+  if (it != column_placeholder_.end()) return it->second;
+  const std::string id = "@placeholder:" + col;
+  graph_.AddPlaceholder(col, id);
+  column_placeholder_[col] = id;
+  return id;
+}
 
-  for (const auto& module : modules) {
-    for (const auto& dep : module->dependencies()) {
-      if (module_names.count(dep) == 0)
-        throw std::invalid_argument("PipelineCompiler: module '" + module->name() +
-                                    "' depends_on unknown module '" + dep + "'");
-    }
+void PipelineCompiler::RegisterProducer(const std::string& col,
+                                        const std::string& node_id,
+                                        const std::string& module_name) {
+  column_producer_[col] = node_id;
+  column_module_[col] = module_name;
+  auto it = column_placeholder_.find(col);
+  if (it != column_placeholder_.end()) {
+    graph_.ReplacePlaceholder(it->second, node_id);  // 最终替换
+    column_placeholder_.erase(it);
   }
+}
 
-  std::unordered_map<std::string, std::size_t> in_degree;
-  std::unordered_map<std::string, std::vector<std::string>> outs;
-  for (const auto& module : modules) {
-    for (const auto& dep : deps[module->name()]) {
-      outs[dep].push_back(module->name());
-      in_degree[module->name()]++;
-    }
+std::string PipelineCompiler::ResolveInputDep(
+    const std::string& col,
+    const std::unordered_map<std::string, std::string>& local,
+    const std::string& module_name) {
+  auto lit = local.find(col);
+  if (lit != local.end()) return lit->second;
+  auto pit = column_producer_.find(col);
+  if (pit != column_producer_.end()) return pit->second;
+  auto mit = column_module_.find(col);
+  if (mit != column_module_.end() && mit->second != module_name) {
+    // Produced by another module: if already compiled this returns its node via
+    // column_producer_ above; otherwise a placeholder stands in until then.
+    return EnsureColumnPlaceholder(col);
   }
-
-  std::queue<std::string> ready;
-  std::vector<std::shared_ptr<Module>> order;
-  std::unordered_set<std::string> visited;
-  for (const auto& module : modules) {
-    if (in_degree[module->name()] == 0) ready.push(module->name());
-  }
-  while (!ready.empty()) {
-    const std::string name = ready.front();
-    ready.pop();
-    for (const auto& module : modules) {
-      if (module->name() == name && visited.insert(name).second) {
-        order.push_back(module);
-        break;
-      }
-    }
-    for (const auto& next : outs[name]) {
-      if (--in_degree[next] == 0) ready.push(next);
-    }
-  }
-
-  if (order.size() != modules.size()) {
-    throw std::runtime_error("PipelineCompiler: module dependency cycle detected");
-  }
-  return order;
+  // Remaining columns are feed ports: data is seeded before compute() runs, so
+  // no dependency edge is required.
+  return "";
 }
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -132,22 +129,8 @@ std::string PipelineCompiler::RemapTemp(
   return mapped;
 }
 
-std::string PipelineCompiler::ResolveInputDep(
-    const std::string& col,
-    const std::unordered_map<std::string, std::string>& local,
-    const std::string& module_name) const {
-  auto lit = local.find(col);
-  if (lit != local.end()) return lit->second;
-  auto pit = column_producer_.find(col);
-  if (pit != column_producer_.end()) return pit->second;
-  // Remaining columns are feed ports: data is seeded before compute() runs,
-  // so no dependency edge is required.
-  (void)module_name;
-  return "";
-}
-
 // ─────────────────────────────────────────────────────────────────────────────
-// Pass C: materialize a module's nodes into the graph.
+// Pass 2: materialize a module's nodes into the graph.
 // ─────────────────────────────────────────────────────────────────────────────
 void PipelineCompiler::CompileModule(const std::shared_ptr<Module>& module) {
   CompiledModule cm;
@@ -172,11 +155,8 @@ void PipelineCompiler::CompileModule(const std::shared_ptr<Module>& module) {
   for (const auto& port : module->inputs()) {
     const std::string node_id = module->name() + "/@in:" + port;
     add_node(node_id, exec::OpSpec{"identity", {port}, {port}});
-    auto pit = column_producer_.find(port);
-    if (pit != column_producer_.end() &&
-        column_module_.at(port) != module->name()) {
-      graph_.AddDependency(node_id, pit->second);
-    }
+    const std::string dep = ResolveInputDep(port, local, module->name());
+    if (!dep.empty()) graph_.AddDependency(node_id, dep);
     local[port] = node_id;
   }
 
@@ -205,8 +185,7 @@ void PipelineCompiler::CompileModule(const std::shared_ptr<Module>& module) {
             module->name() + "'");
       }
       local[out] = node_id;
-      column_producer_[out] = node_id;
-      column_module_[out] = module->name();
+      RegisterProducer(out, node_id, module->name());
     }
     cm.tail = node_id;
   }
@@ -221,18 +200,23 @@ void PipelineCompiler::CompileModule(const std::shared_ptr<Module>& module) {
       // an anonymous output node.
       const std::string node_id = module->name() + "/@out:" + port;
       add_node(node_id, exec::OpSpec{"identity", {port}, {port}});
-      auto pit = column_producer_.find(port);
-      if (pit != column_producer_.end() &&
-          column_module_.at(port) != module->name()) {
-        graph_.AddDependency(node_id, pit->second);
-      }
+      const std::string dep = ResolveInputDep(port, local, module->name());
+      if (!dep.empty()) graph_.AddDependency(node_id, dep);
       local[port] = node_id;
-      column_producer_[port] = node_id;
-      column_module_[port] = module->name();
+      RegisterProducer(port, node_id, module->name());
       cm.output_nodes.push_back(node_id);
       cm.tail = node_id;
     }
     cm.output_names.push_back(port);
+  }
+
+  // Ensure a tail exists (a module with no ops/outputs still needs a node so
+  // forward depends_on placeholders can be replaced by a real node).
+  if (cm.tail.empty()) {
+    const std::string node_id = module->name() + "/@noop";
+    add_node(node_id, exec::OpSpec{"identity", {"@noop:" + module->name()},
+                                   {"@noop:" + module->name()}});
+    cm.tail = node_id;
   }
 
   // ---- explicit module ordering edges (anonymous) -----------------------
@@ -240,16 +224,36 @@ void PipelineCompiler::CompileModule(const std::shared_ptr<Module>& module) {
     const std::string node_id = module->name() + "/@dep:" + dep_name;
     add_node(node_id,
              exec::OpSpec{"identity", {module->name()}, {module->name()}});
-    const auto& dep_info = module_info_.at(dep_name);
-    if (!dep_info.output_nodes.empty()) {
-      for (const auto& out_node : dep_info.output_nodes)
-        graph_.AddDependency(node_id, out_node);
-    } else if (!dep_info.tail.empty()) {
-      graph_.AddDependency(node_id, dep_info.tail);
+    auto info_it = module_info_.find(dep_name);
+    if (info_it != module_info_.end()) {
+      // dependency module already compiled: order after its outputs/tail
+      const auto& dep_info = info_it->second;
+      if (!dep_info.output_nodes.empty()) {
+        for (const auto& out_node : dep_info.output_nodes)
+          graph_.AddDependency(node_id, out_node);
+      } else if (!dep_info.tail.empty()) {
+        graph_.AddDependency(node_id, dep_info.tail);
+      }
+    } else {
+      // dependency module comes later: a placeholder tail stands in, replaced
+      // when that module compiles.
+      std::string& tail_ph = module_tail_placeholder_[dep_name];
+      if (tail_ph.empty()) {
+        tail_ph = "@tail:" + dep_name;
+        graph_.AddPlaceholder("@tail:" + dep_name, tail_ph);
+      }
+      graph_.AddDependency(node_id, tail_ph);
     }
     if (!first_node.empty() && first_node != node_id)
       graph_.AddDependency(first_node, node_id);
     if (cm.tail.empty()) cm.tail = node_id;
+  }
+
+  // Replace any forward depends_on placeholder tail for this module.
+  auto tail_it = module_tail_placeholder_.find(module->name());
+  if (tail_it != module_tail_placeholder_.end() && !cm.tail.empty()) {
+    graph_.ReplacePlaceholder(tail_it->second, cm.tail);
+    module_tail_placeholder_.erase(tail_it);
   }
 
   module_info_[module->name()] = std::move(cm);

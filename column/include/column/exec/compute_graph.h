@@ -44,6 +44,24 @@ class ComputeGraph {
   ComputeNode& AddNode(std::string id, std::string module,
                        std::unique_ptr<TensorOp> op);
 
+  // Add an anonymous placeholder node that "stands in" for a future producer
+  // of `output`. Used for forward references during total-graph orchestration
+  // (module A may reference a column produced by a later module B). The
+  // placeholder is replaced by the real node via ReplacePlaceholder() before
+  // execution; if it ever runs, it throws.
+  ComputeNode& AddPlaceholder(const std::string& output,
+                              const std::string& id);
+
+  // Replace `placeholder_id` with the real node `real_id`: every incoming
+  // dependency edge is rewired to the real node and the placeholder is
+  // removed. Throws std::out_of_range on unknown ids.
+  void ReplacePlaceholder(const std::string& placeholder_id,
+                          const std::string& real_id);
+
+  // True when any unresolved placeholder node remains (a forward reference
+  // whose producer never appeared).
+  bool HasPlaceholders() const;
+
   ComputeNode* Find(const std::string& id) const;
   const std::vector<std::unique_ptr<ComputeNode>>& nodes() const noexcept {
     return nodes_;

@@ -50,6 +50,74 @@ ComputeNode& ComputeGraph::AddNode(std::string id, std::string module,
   return *raw;
 }
 
+namespace {
+// A placeholder op: declares its output column but has no real computation.
+// It must never run — a forward reference is resolved (ReplacePlaceholder)
+// before execution; running one is a wiring bug.
+class PlaceholderOp : public TensorOp {
+ public:
+  explicit PlaceholderOp(std::string output)
+      : outputs_{std::move(output)} {}
+
+  const char* op_type() const noexcept override { return "placeholder"; }
+  const std::vector<std::string>& inputs() const noexcept override {
+    return kEmpty;
+  }
+  const std::vector<std::string>& outputs() const noexcept override {
+    return outputs_;
+  }
+  void compute(OpContext&) override {
+    throw std::runtime_error(
+        "placeholder executed: unresolved forward reference");
+  }
+
+ private:
+  static const std::vector<std::string> kEmpty;
+  std::vector<std::string> outputs_;
+};
+const std::vector<std::string> PlaceholderOp::kEmpty;
+}  // namespace
+
+ComputeNode& ComputeGraph::AddPlaceholder(const std::string& output,
+                                          const std::string& id) {
+  return AddNode(id, "@placeholder", std::make_unique<PlaceholderOp>(output));
+}
+
+void ComputeGraph::ReplacePlaceholder(const std::string& placeholder_id,
+                                      const std::string& real_id) {
+  ComputeNode* placeholder = Find(placeholder_id);
+  ComputeNode* real = Find(real_id);
+  if (placeholder == nullptr) {
+    throw std::out_of_range("ComputeGraph::ReplacePlaceholder: unknown placeholder '" +
+                            placeholder_id + "'");
+  }
+  if (real == nullptr) {
+    throw std::out_of_range("ComputeGraph::ReplacePlaceholder: unknown node '" +
+                            real_id + "'");
+  }
+  if (placeholder == real) return;
+
+  for (auto& node : nodes_) {
+    node->ReplaceDependency(placeholder, real);
+  }
+
+  by_id_.erase(placeholder_id);
+  nodes_.erase(
+      std::remove_if(nodes_.begin(), nodes_.end(),
+                     [&](const std::unique_ptr<ComputeNode>& n) {
+                       return n.get() == placeholder;
+                     }),
+      nodes_.end());
+  finalized_ = false;
+}
+
+bool ComputeGraph::HasPlaceholders() const {
+  for (const auto& node : nodes_) {
+    if (std::string(node->op().op_type()) == "placeholder") return true;
+  }
+  return false;
+}
+
 ComputeNode* ComputeGraph::Find(const std::string& id) const {
   auto it = by_id_.find(id);
   return it == by_id_.end() ? nullptr : it->second;

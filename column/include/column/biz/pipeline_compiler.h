@@ -26,7 +26,7 @@ struct CompiledModule {
 
 // ─────────────────────────────────────────────────────────────────────────────
 // PipelineCompiler: turns a set of business Modules into an execution
-// ComputeGraph.
+// ComputeGraph (总图编排).
 //
 // This is the framework side of the wiring contract: modules only declare
 // inputs / sub-graph / outputs; the compiler resolves
@@ -36,6 +36,14 @@ struct CompiledModule {
 //   * module-local temp columns (@<module>/tN for DSL temporaries), and
 //   * data-flow dependency edges between modules (by produced column).
 //
+// Modules are compiled in REGISTRATION order. When a module references a
+// column produced by a module compiled later (a forward reference), an
+// anonymous **placeholder node** is created to stand in (占位), keeping the
+// graph buildable; once the producer module is compiled, the placeholder is
+// replaced by the real node (最终替换) and every edge is rewired. depends_on
+// edges to later modules use a placeholder tail the same way. Cycles are
+// detected by ComputeGraph::Finalize (topological sort).
+//
 // Extracted from Pipeline so the orchestration class stays small and each
 // responsibility (config + feed/compute/fetch vs. graph construction) lives in
 // its own class.
@@ -44,8 +52,10 @@ class PipelineCompiler {
  public:
   PipelineCompiler(exec::ComputeGraph& graph, backend::Backend& backend);
 
-  // Compile the given modules (in dependency order) into the graph.
-  // Throws std::invalid_argument / std::runtime_error on wiring problems.
+  // Compile the given modules (in registration order) into the graph.
+  // Throws std::invalid_argument / std::runtime_error on wiring problems,
+  // including unresolved forward references (a referenced column/tail whose
+  // producer never appeared).
   void Compile(const std::vector<std::shared_ptr<Module>>& modules,
                const std::unordered_set<std::string>& module_names);
 
@@ -56,14 +66,18 @@ class PipelineCompiler {
 
  private:
   void CollectColumnProducers(const std::vector<std::shared_ptr<Module>>& modules);
-  std::vector<std::shared_ptr<Module>> TopoSortModules(
-      const std::vector<std::shared_ptr<Module>>& modules,
-      const std::unordered_set<std::string>& module_names) const;
   void CompileModule(const std::shared_ptr<Module>& module);
   std::string ResolveInputDep(
       const std::string& col,
       const std::unordered_map<std::string, std::string>& local,
-      const std::string& module_name) const;
+      const std::string& module_name);
+  // Ensure a placeholder node exists for a column produced by a module that has
+  // not been compiled yet; returns its node id.
+  std::string EnsureColumnPlaceholder(const std::string& col);
+  // Record that `node_id` produces `col`; if a placeholder was standing in for
+  // it, replace the placeholder with the real node.
+  void RegisterProducer(const std::string& col, const std::string& node_id,
+                        const std::string& module_name);
   static std::string RemapTemp(
       const std::string& col, const std::string& module_name,
       std::unordered_map<std::string, std::string>& rename);
@@ -74,6 +88,10 @@ class PipelineCompiler {
   std::unordered_map<std::string, std::string> column_producer_;  // col -> node id
   std::unordered_map<std::string, std::string> column_module_;    // col -> module
   std::unordered_map<std::string, CompiledModule> module_info_;   // module -> info
+  // col -> placeholder node id (created for forward references)
+  std::unordered_map<std::string, std::string> column_placeholder_;
+  // module -> placeholder tail node id (created for forward depends_on)
+  std::unordered_map<std::string, std::string> module_tail_placeholder_;
 };
 
 }  // namespace lark::column::biz

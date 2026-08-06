@@ -635,6 +635,63 @@ void TestColumnEdgeCases() {
   std::cout << "  done\n";
 }
 
+// ─────────────────────────────────────────────────────────────────────────────
+// Forward references: a module registered FIRST may depend on a later module's
+// output — the framework creates an anonymous placeholder node (占位), then
+// replaces it (最终替换) once the producer module compiles.
+// ─────────────────────────────────────────────────────────────────────────────
+void TestPlaceholderForwardRefs() {
+  std::cout << "Test placeholder forward references...\n";
+
+  // A is registered FIRST and consumes B's output "b_out".
+  auto a = std::make_shared<biz::Module>("a");
+  a->input("x").input("b_out").output("final").from_dsl("final = b_out + x");
+  auto b = std::make_shared<biz::Module>("b");
+  b->input("x").output("b_out").from_dsl("b_out = x * 2");
+
+  biz::Pipeline p;
+  p.add_module(a).add_module(b);
+  p.compile();
+
+  // the placeholder was fully replaced — none remain in the final graph
+  CHECK(!p.graph().HasPlaceholders());
+  CHECK(p.graph().Find("@placeholder:b_out") == nullptr);
+
+  // forward depends_on: A depends_on B (B registered after A)
+  auto a2 = std::make_shared<biz::Module>("a2");
+  a2->input("x").output("out").depends_on("b2").from_dsl("out = x + 1");
+  auto b2 = std::make_shared<biz::Module>("b2");
+  b2->input("x").output("marker").from_dsl("marker = x * 100");
+  biz::Pipeline p2;
+  p2.add_module(a2).add_module(b2);
+  p2.compile();
+  CHECK(!p2.graph().HasPlaceholders());
+  const auto* dep_node = p2.graph().Find("a2/@dep:b2");
+  CHECK(dep_node != nullptr);
+  CHECK(!dep_node->dependencies().empty());  // wired to b2's tail (replaced)
+
+  // execute the forward-ref graph
+  p.feed({"x"}, {{Cell(int64_t(3))}});
+  p.compute();
+  CHECK(p.fetch_scalar("final") == 9.0);   // b_out = 6, final = 6 + 3
+
+  p2.feed({"x"}, {{Cell(int64_t(2))}});
+  p2.compute();
+  CHECK(p2.fetch_scalar("out") == 3.0);
+  CHECK(p2.fetch_scalar("marker") == 200.0);
+
+  // a cycle across modules (via forward references) is still caught at Finalize
+  auto ca = std::make_shared<biz::Module>("ca");
+  ca->input("b_out").output("a_out").from_dsl("a_out = b_out + 1");
+  auto cb = std::make_shared<biz::Module>("cb");
+  cb->input("a_out").output("b_out").from_dsl("b_out = a_out + 1");
+  biz::Pipeline cyc;
+  cyc.add_module(ca).add_module(cb);
+  CHECK_THROWS([&] { cyc.compile(); });
+
+  std::cout << "  done\n";
+}
+
 }  // namespace
 
 int main() {
@@ -656,6 +713,7 @@ int main() {
     TestCodeOrchestration();
     TestRunAndReuse();
     TestColumnEdgeCases();
+    TestPlaceholderForwardRefs();
 
     std::cout << "\n" << (g_checks - g_failures) << "/" << g_checks
               << " checks passed\n";
